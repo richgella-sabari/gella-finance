@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Family Finance Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a1a; }
+  header { background: #1a1a2e; color: white; padding: 20px 24px; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  header p { font-size: 0.85rem; color: #aaa; margin-top: 4px; }
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .card label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+  .card .amount { font-size: 1.6rem; font-weight: 700; margin-top: 6px; }
+  .income-card .amount { color: #16a34a; }
+  .expense-card .amount { color: #dc2626; }
+  .balance-card .amount { color: #2563eb; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab { padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 500; background: white; color: #666; }
+  .tab.active { background: #1a1a2e; color: white; }
+  .form-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; }
+  .form-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; }
+  .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .form-grid.full { grid-template-columns: 1fr; }
+  label.field { font-size: 0.8rem; color: #555; display: block; margin-bottom: 4px; }
+  input, select, textarea { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: #2563eb; }
+  textarea { resize: vertical; min-height: 60px; }
+  .btn { padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+  .btn-primary { background: #1a1a2e; color: white; }
+  .btn-success { background: #16a34a; color: white; }
+  .btn-danger { background: #dc2626; color: white; font-size: 0.75rem; padding: 5px 10px; }
+  .btn-export { background: #2563eb; color: white; margin-left: auto; display: block; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  th { background: #f8f9fa; padding: 12px 14px; text-align: left; font-size: 0.78rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 12px 14px; font-size: 0.88rem; border-top: 1px solid #f0f0f0; }
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+  .badge-income { background: #dcfce7; color: #16a34a; }
+  .badge-expense { background: #fee2e2; color: #dc2626; }
+  .type-income { color: #16a34a; font-weight: 700; }
+  .type-expense { color: #dc2626; font-weight: 700; }
+  @media (max-width: 600px) {
+    .summary { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>💰 Family Finance Tracker</h1>
+  <p>Rich & Nina · Gella Family</p>
+</header>
+<div class="container">
+  <!-- Summary Cards -->
+  <div class="summary">
+    <div class="card income-card">
+      <label>Total Income</label>
+      <div class="amount" id="totalIncome">₱0</div>
+    </div>
+    <div class="card expense-card">
+      <label>Total Expenses</label>
+      <div class="amount" id="totalExpenses">₱0</div>
+    </div>
+    <div class="card balance-card">
+      <label>Net Balance</label>
+      <div class="amount" id="netBalance">₱0</div>
+    </div>
+  </div>
+
+  <!-- Add Entry Form -->
+  <div class="form-card">
+    <h2>➕ Add Entry</h2>
+    <div class="form-grid">
+      <div>
+        <label class="field">Type *</label>
+        <select id="type">
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+      </div>
+      <div>
+        <label class="field">Amount (PHP) *</label>
+        <input type="number" id="amount" placeholder="0.00" step="0.01">
+      </div>
+      <div>
+        <label class="field">Category *</label>
+        <select id="category">
+          <option value="">-- Select --</option>
+          <optgroup label="Income">
+            <option>Consulting</option>
+            <option>Salary</option>
+            <option>Business</option>
+            <option>Transfer Received</option>
+            <option>Other Income</option>
+          </optgroup>
+          <optgroup label="Expenses">
+            <option>Food & Dining</option>
+            <option>Transportation</option>
+            <option>Utilities</option>
+            <option>Healthcare</option>
+            <option>Education</option>
+            <option>Shopping</option>
+            <option>Entertainment</option>
+            <option>Household</option>
+            <option>Personal Care</option>
+            <option>Other Expense</option>
+          </optgroup>
+        </select>
+      </div>
+      <div>
+        <label class="field">Date *</label>
+        <input type="date" id="date">
+      </div>
+      <div>
+        <label class="field">Payment Method</label>
+        <select id="payment">
+          <option value="">-- Select --</option>
+          <option>Cash</option>
+          <option>Credit Card</option>
+          <option>Bank Transfer</option>
+          <option>GCash</option>
+          <option>Maya</option>
+          <option>MariBank</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="field">For</label>
+        <select id="forWhom">
+          <option value="">-- Select --</option>
+          <option>Family</option>
+          <option>Rich</option>
+          <option>Nina</option>
+          <option>Personal</option>
+        </select>
+      </div>
+      <div>
+        <label class="field">Source / Payee</label>
+        <input type="text" id="source" placeholder="e.g. Infinity Broadband">
+      </div>
+      <div>
+        <label class="field">Description / Note</label>
+        <input type="text" id="description" placeholder="Optional notes">
+      </div>
+    </div>
+    <div style="margin-top:16px; text-align:right;">
+      <button class="btn btn-primary" onclick="addEntry()">Add Entry</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <button class="btn btn-export" onclick="exportCSV()">📥 Export CSV</button>
+  <div class="tabs">
+    <button class="tab active" onclick="filterTable('all', this)">All</button>
+    <button class="tab" onclick="filterTable('income', this)">Income</button>
+    <button class="tab" onclick="filterTable('expense', this)">Expenses</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Category</th>
+        <th>Source / Payee</th>
+        <th>Description</th>
+        <th>Payment</th>
+        <th>For</th>
+        <th style="text-align:right">Amount</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<script>
+const STORAGE_KEY = 'gella_finance_v1';
+
+let entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+// Seed initial data if empty
+if (entries.length === 0) {
+  entries = [
+    {
+      id: Date.now() - 2,
+      type: 'income',
+      amount: 15000,
+      category: 'Consulting',
+      date: '2026-03-31',
+      payment: 'Bank Transfer',
+      forWhom: 'Nina',
+      source: 'Infinity Broadband',
+      description: 'Consultant fee (partial of PHP 60k total) – transferred Rich→Nina'
+    },
+    {
+      id: Date.now() - 1,
+      type: 'income',
+      amount: 45000,
+      category: 'Consulting',
+      date: '2026-04-01',
+      payment: 'MariBank',
+      forWhom: 'Family',
+      source: 'Infinity Broadband',
+      description: 'Balance of PHP 60k consultant fee'
+    }
+  ];
+  save();
+}
+
+// Set today's date as default
+document.getElementById('date').value = new Date().toISOString().split('T')[0];
+
+let currentFilter = 'all';
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+function fmt(n) {
+  return '₱' + Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+}
+
+function addEntry() {
+  const type = document.getElementById('type').value;
+  const amount = parseFloat(document.getElementById('amount').value);
+  const category = document.getElementById('category').value;
+  const date = document.getElementById('date').value;
+  const payment = document.getElementById('payment').value;
+  const forWhom = document.getElementById('forWhom').value;
+  const source = document.getElementById('source').value;
+  const description = document.getElementById('description').value;
+
+  if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
+  if (!category) { alert('Please select a category.'); return; }
+  if (!date) { alert('Please enter a date.'); return; }
+
+  entries.unshift({ id: Date.now(), type, amount, category, date, payment, forWhom, source, description });
+  save();
+  render();
+
+  // Reset
+  document.getElementById('amount').value = '';
+  document.getElementById('category').value = '';
+  document.getElementById('source').value = '';
+  document.getElementById('description').value = '';
+}
+
+function deleteEntry(id) {
+  if (!confirm('Delete this entry?')) return;
+  entries = entries.filter(e => e.id !== id);
+  save();
+  render();
+}
+
+function filterTable(type, btn) {
+  currentFilter = type;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function render() {
+  const filtered = currentFilter === 'all' ? entries : entries.filter(e => e.type === currentFilter);
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = filtered.map(e => `
+    <tr>
+      <td>${e.date}</td>
+      <td><span class="badge badge-${e.type}">${e.type === 'income' ? 'Income' : 'Expense'}</span></td>
+      <td>${e.category || '-'}</td>
+      <td>${e.source || '-'}</td>
+      <td>${e.description || '-'}</td>
+      <td>${e.payment || '-'}</td>
+      <td>${e.forWhom || '-'}</td>
+      <td style="text-align:right" class="type-${e.type}">${e.type === 'income' ? '+' : '-'}${fmt(e.amount)}</td>
+      <td><button class="btn btn-danger" onclick="deleteEntry(${e.id})">✕</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">No entries yet</td></tr>';
+
+  const totalIncome = entries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+  const totalExpenses = entries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
+  document.getElementById('totalIncome').textContent = fmt(totalIncome);
+  document.getElementById('totalExpenses').textContent = fmt(totalExpenses);
+  document.getElementById('netBalance').textContent = fmt(totalIncome - totalExpenses);
+}
+
+function exportCSV() {
+  const headers = ['Date','Type','Category','Source/Payee','Description','Payment','For','Amount'];
+  const rows = entries.map(e => [e.date, e.type, e.category, e.source, e.description, e.payment, e.forWhom, e.amount]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v || ''}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv,' + encodeURIComponent(csv);
+  a.download = 'gella-finances.csv';
+  a.click();
+}
+
+render();
+</script>
+</body>
+</html>
