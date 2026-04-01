@@ -24,32 +24,36 @@
   .income-card .amount { color: #16a34a; }
   .expense-card .amount { color: #dc2626; }
   .balance-card .amount { color: #2563eb; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   .tab { padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 500; background: white; color: #666; }
   .tab.active { background: #1a1a2e; color: white; }
   .form-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; }
   .form-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; }
   .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   label.field { font-size: 0.8rem; color: #555; display: block; margin-bottom: 4px; }
-  input, select, textarea { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; outline: none; }
+  input, select { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; outline: none; }
   input:focus, select:focus { border-color: #2563eb; }
   .btn { padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
   .btn-primary { background: #1a1a2e; color: white; }
-  .btn-danger { background: #dc2626; color: white; font-size: 0.75rem; padding: 5px 10px; }
-  .btn-export { background: #2563eb; color: white; margin-left: auto; display: block; margin-bottom: 12px; }
-  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .btn-danger { background: #dc2626; color: white; font-size: 0.75rem; padding: 5px 10px; border-radius: 6px; }
+  .btn-export { background: #2563eb; color: white; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; }
   th { background: #f8f9fa; padding: 12px 14px; text-align: left; font-size: 0.78rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
   td { padding: 12px 14px; font-size: 0.88rem; border-top: 1px solid #f0f0f0; }
   .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
   .badge-income { background: #dcfce7; color: #16a34a; }
   .badge-expense { background: #fee2e2; color: #dc2626; }
+  .badge-added { background: #dbeafe; color: #1d4ed8; }
+  .badge-deleted { background: #fee2e2; color: #dc2626; }
   .type-income { color: #16a34a; font-weight: 700; }
   .type-expense { color: #dc2626; font-weight: 700; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .section-header h3 { font-size: 1rem; font-weight: 600; color: #444; }
+  .log-entry { font-size: 0.82rem; color: #555; }
   @media (max-width: 600px) {
     .summary { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: 1fr; }
-    table { font-size: 0.8rem; }
-    th, td { padding: 8px 8px; }
+    th, td { padding: 8px 8px; font-size: 0.8rem; }
   }
 </style>
 </head>
@@ -61,7 +65,9 @@
   </div>
   <span class="sync-status sync-ing" id="syncStatus">Connecting...</span>
 </header>
+
 <div class="container">
+  <!-- Summary -->
   <div class="summary">
     <div class="card income-card">
       <label>Total Income</label>
@@ -77,6 +83,7 @@
     </div>
   </div>
 
+  <!-- Add Entry Form -->
   <div class="form-card">
     <h2>➕ Add Entry</h2>
     <div class="form-grid">
@@ -157,7 +164,11 @@
     </div>
   </div>
 
-  <button class="btn btn-export" onclick="exportCSV()">📥 Export CSV</button>
+  <!-- Entries Table -->
+  <div class="section-header">
+    <h3>📋 Entries</h3>
+    <button class="btn btn-export" onclick="exportCSV()">📥 Export CSV</button>
+  </div>
   <div class="tabs">
     <button class="tab active" onclick="filterTable('all', this)">All</button>
     <button class="tab" onclick="filterTable('income', this)">Income</button>
@@ -179,49 +190,73 @@
     </thead>
     <tbody id="tableBody"></tbody>
   </table>
+
+  <!-- Activity Log -->
+  <div class="section-header" style="margin-top:8px;">
+    <h3>🕓 Activity Log</h3>
+    <button class="btn" style="background:#f3f4f6;color:#555;font-size:0.8rem;padding:6px 14px;" onclick="toggleLog()">Show/Hide</button>
+  </div>
+  <div id="logSection">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Action</th>
+          <th>Type</th>
+          <th>Amount</th>
+          <th>Category</th>
+          <th>Source / Payee</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
-// Firebase config
 const firebaseConfig = {
   databaseURL: "https://finance-tracker-gella-default-rtdb.firebaseio.com/"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const entriesRef = db.ref('entries');
+const logRef = db.ref('activityLog');
 
 let entries = [];
+let activityLog = [];
 let currentFilter = 'all';
 let seeded = false;
+let logVisible = true;
 
-// Set today's date
 document.getElementById('date').value = new Date().toISOString().split('T')[0];
 
-// Sync status
-const syncEl = document.getElementById('syncStatus');
-
+// Connection status
 db.ref('.info/connected').on('value', snap => {
+  const el = document.getElementById('syncStatus');
   if (snap.val()) {
-    syncEl.textContent = '🟢 Synced';
-    syncEl.className = 'sync-status sync-ok';
+    el.textContent = '🟢 Synced';
+    el.className = 'sync-status sync-ok';
   } else {
-    syncEl.textContent = '🔴 Offline';
-    syncEl.className = 'sync-status sync-off';
+    el.textContent = '🔴 Offline';
+    el.className = 'sync-status sync-off';
   }
 });
 
-// Listen for real-time changes
+// Listen to entries
 entriesRef.on('value', snap => {
   const data = snap.val();
   if (!data) {
-    // Seed initial data if DB is empty
     if (!seeded) {
       seeded = true;
       const seed = [
-        { type:'income', amount:15000, category:'Consulting', date:'2026-03-31', payment:'Bank Transfer', forWhom:'Nina', source:'Infinity Broadband', description:'Consultant fee (partial of PHP 60k total) - transferred Rich to Nina', ts: Date.now()-2 },
-        { type:'income', amount:45000, category:'Consulting', date:'2026-04-01', payment:'MariBank', forWhom:'Family', source:'Infinity Broadband', description:'Balance of PHP 60k consultant fee', ts: Date.now()-1 }
+        { type:'income', amount:15000, category:'Consulting', date:'2026-03-31', payment:'Bank Transfer', forWhom:'Nina', source:'Infinity Broadband', description:'Consultant fee (partial of PHP 60k) - transferred Rich to Nina', ts: Date.now()-2000 },
+        { type:'income', amount:45000, category:'Consulting', date:'2026-04-01', payment:'MariBank', forWhom:'Family', source:'Infinity Broadband', description:'Balance of PHP 60k consultant fee', ts: Date.now()-1000 }
       ];
-      seed.forEach(e => entriesRef.push(e));
+      seed.forEach(e => {
+        const ref = entriesRef.push(e);
+        logRef.push({ action:'ADDED', entryId: ref.key, type: e.type, amount: e.amount, category: e.category, source: e.source, description: e.description, ts: Date.now() });
+      });
     }
     return;
   }
@@ -230,8 +265,24 @@ entriesRef.on('value', snap => {
   render();
 });
 
+// Listen to activity log
+logRef.on('value', snap => {
+  const data = snap.val();
+  if (!data) { activityLog = []; renderLog(); return; }
+  activityLog = Object.entries(data).map(([key, val]) => ({ ...val, _key: key }));
+  activityLog.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  renderLog();
+});
+
 function fmt(n) {
   return '₱' + Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+}
+
+function fmtTime(ts) {
+  if (!ts) return '-';
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' }) + ' ' +
+         d.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' });
 }
 
 function addEntry() {
@@ -248,7 +299,16 @@ function addEntry() {
   if (!category) { alert('Please select a category.'); return; }
   if (!date) { alert('Please enter a date.'); return; }
 
-  entriesRef.push({ type, amount, category, date, payment, forWhom, source, description, ts: Date.now() });
+  const entry = { type, amount, category, date, payment, forWhom, source, description, ts: Date.now() };
+  const newRef = entriesRef.push(entry);
+
+  // Log the addition
+  logRef.push({
+    action: 'ADDED',
+    entryId: newRef.key,
+    type, amount, category, source, description,
+    ts: Date.now()
+  });
 
   document.getElementById('amount').value = '';
   document.getElementById('category').value = '';
@@ -256,8 +316,17 @@ function addEntry() {
   document.getElementById('description').value = '';
 }
 
-function deleteEntry(key) {
-  if (!confirm('Delete this entry?')) return;
+function deleteEntry(key, type, amount, category, source, description) {
+  if (!confirm('Delete this entry? This will be recorded in the activity log.')) return;
+
+  // Log the deletion BEFORE removing
+  logRef.push({
+    action: 'DELETED',
+    entryId: key,
+    type, amount, category, source, description,
+    ts: Date.now()
+  });
+
   entriesRef.child(key).remove();
 }
 
@@ -266,6 +335,11 @@ function filterTable(type, btn) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   render();
+}
+
+function toggleLog() {
+  logVisible = !logVisible;
+  document.getElementById('logSection').style.display = logVisible ? 'block' : 'none';
 }
 
 function render() {
@@ -281,7 +355,7 @@ function render() {
       <td>${e.payment || '-'}</td>
       <td>${e.forWhom || '-'}</td>
       <td style="text-align:right" class="type-${e.type}">${e.type === 'income' ? '+' : '-'}${fmt(e.amount)}</td>
-      <td><button class="btn btn-danger" onclick="deleteEntry('${e._key}')">✕</button></td>
+      <td><button class="btn btn-danger" onclick="deleteEntry('${e._key}','${e.type}',${e.amount},'${(e.category||'').replace(/'/g,"\\'")}','${(e.source||'').replace(/'/g,"\\'")}','${(e.description||'').replace(/'/g,"\\'")}')">✕</button></td>
     </tr>
   `).join('') || '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">No entries yet</td></tr>';
 
@@ -290,6 +364,21 @@ function render() {
   document.getElementById('totalIncome').textContent = fmt(totalIncome);
   document.getElementById('totalExpenses').textContent = fmt(totalExpenses);
   document.getElementById('netBalance').textContent = fmt(totalIncome - totalExpenses);
+}
+
+function renderLog() {
+  const logBody = document.getElementById('logBody');
+  logBody.innerHTML = activityLog.map(l => `
+    <tr>
+      <td class="log-entry">${fmtTime(l.ts)}</td>
+      <td><span class="badge badge-${l.action === 'ADDED' ? 'added' : 'deleted'}">${l.action}</span></td>
+      <td>${l.type || '-'}</td>
+      <td class="${l.type === 'income' ? 'type-income' : 'type-expense'}">${l.action === 'DELETED' ? '<s>' : ''}${fmt(l.amount || 0)}${l.action === 'DELETED' ? '</s>' : ''}</td>
+      <td>${l.category || '-'}</td>
+      <td>${l.source || '-'}</td>
+      <td>${l.description || '-'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">No activity yet</td></tr>';
 }
 
 function exportCSV() {
