@@ -9,9 +9,11 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a1a; }
-  header { background: #1a1a2e; color: white; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; }
+  header { background: #1a1a2e; color: white; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
   header h1 { font-size: 1.4rem; font-weight: 600; }
   header p { font-size: 0.85rem; color: #aaa; margin-top: 4px; }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .user-badge { font-size: 0.78rem; background: #2d2d4e; color: #ccc; padding: 4px 10px; border-radius: 20px; }
   .sync-status { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
   .sync-ok { background: #16a34a; color: white; }
   .sync-off { background: #dc2626; color: white; }
@@ -39,7 +41,7 @@
   .btn-export { background: #2563eb; color: white; }
   table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; }
   th { background: #f8f9fa; padding: 12px 14px; text-align: left; font-size: 0.78rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
-  td { padding: 12px 14px; font-size: 0.88rem; border-top: 1px solid #f0f0f0; }
+  td { padding: 12px 14px; font-size: 0.88rem; border-top: 1px solid #f0f0f0; vertical-align: top; }
   .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
   .badge-income { background: #dcfce7; color: #16a34a; }
   .badge-expense { background: #fee2e2; color: #dc2626; }
@@ -49,21 +51,38 @@
   .type-expense { color: #dc2626; font-weight: 700; }
   .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .section-header h3 { font-size: 1rem; font-weight: 600; color: #444; }
-  .log-entry { font-size: 0.82rem; color: #555; }
+  .audit-note { font-size: 0.75rem; color: #888; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 14px; margin-bottom: 12px; }
+  .who { font-size: 0.75rem; color: #666; }
+  .device { font-size: 0.7rem; color: #999; }
+  .name-prompt { background: #1a1a2e; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .name-prompt input { max-width: 200px; padding: 7px 12px; border-radius: 8px; border: none; font-size: 0.9rem; }
+  .name-prompt button { padding: 7px 16px; background: #886ff4; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+  .name-prompt span { font-size: 0.9rem; }
   @media (max-width: 600px) {
     .summary { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: 1fr; }
-    th, td { padding: 8px 8px; font-size: 0.8rem; }
+    th, td { padding: 8px 8px; font-size: 0.78rem; }
   }
 </style>
 </head>
 <body>
+
+<!-- Name prompt -->
+<div class="name-prompt" id="namePrompt">
+  <span>👤 Who are you?</span>
+  <input type="text" id="nameInput" placeholder="e.g. Rich or Nina" maxlength="30">
+  <button onclick="setUser()">Set Name</button>
+</div>
+
 <header>
   <div>
     <h1>💰 Gella Family Finance Tracker</h1>
     <p>Rich & Nina · Real-time sync</p>
   </div>
-  <span class="sync-status sync-ing" id="syncStatus">Connecting...</span>
+  <div class="header-right">
+    <span class="user-badge" id="userBadge">👤 Not set</span>
+    <span class="sync-status sync-ing" id="syncStatus">Connecting...</span>
+  </div>
 </header>
 
 <div class="container">
@@ -83,7 +102,7 @@
     </div>
   </div>
 
-  <!-- Add Entry Form -->
+  <!-- Add Entry -->
   <div class="form-card">
     <h2>➕ Add Entry</h2>
     <div class="form-grid">
@@ -185,23 +204,27 @@
         <th>Payment</th>
         <th>For</th>
         <th style="text-align:right">Amount</th>
+        <th>Added By</th>
         <th></th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
   </table>
 
-  <!-- Activity Log -->
-  <div class="section-header" style="margin-top:8px;">
-    <h3>🕓 Activity Log</h3>
+  <!-- Audit Trail -->
+  <div class="section-header">
+    <h3>🔐 Audit Trail</h3>
     <button class="btn" style="background:#f3f4f6;color:#555;font-size:0.8rem;padding:6px 14px;" onclick="toggleLog()">Show/Hide</button>
   </div>
+  <div class="audit-note">⚠️ The audit trail is <strong>read-only</strong> and cannot be deleted. Every addition and deletion is permanently recorded with the user, device, and timestamp.</div>
   <div id="logSection">
     <table>
       <thead>
         <tr>
-          <th>Time</th>
+          <th>Timestamp</th>
           <th>Action</th>
+          <th>By</th>
+          <th>Device</th>
           <th>Type</th>
           <th>Amount</th>
           <th>Category</th>
@@ -215,47 +238,67 @@
 </div>
 
 <script>
-const firebaseConfig = {
-  databaseURL: "https://finance-tracker-gella-default-rtdb.firebaseio.com/"
-};
+const firebaseConfig = { databaseURL: "https://finance-tracker-gella-default-rtdb.firebaseio.com/" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const entriesRef = db.ref('entries');
-const logRef = db.ref('activityLog');
+const logRef = db.ref('auditTrail');
 
 let entries = [];
-let activityLog = [];
+let auditLog = [];
 let currentFilter = 'all';
 let seeded = false;
 let logVisible = true;
+
+// User identity
+let currentUser = localStorage.getItem('gella_user') || '';
+updateUserDisplay();
+
+function setUser() {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) return;
+  currentUser = name;
+  localStorage.setItem('gella_user', name);
+  updateUserDisplay();
+  document.getElementById('namePrompt').style.display = 'none';
+}
+
+function updateUserDisplay() {
+  document.getElementById('userBadge').textContent = '👤 ' + (currentUser || 'Not set');
+  if (currentUser) document.getElementById('namePrompt').style.display = 'none';
+}
+
+function getDevice() {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(ua)) return '📱 iOS';
+  if (/Android/.test(ua)) return '📱 Android';
+  if (/Mac/.test(ua)) return '💻 Mac';
+  if (/Windows/.test(ua)) return '💻 Windows';
+  return '🖥️ Browser';
+}
 
 document.getElementById('date').value = new Date().toISOString().split('T')[0];
 
 // Connection status
 db.ref('.info/connected').on('value', snap => {
   const el = document.getElementById('syncStatus');
-  if (snap.val()) {
-    el.textContent = '🟢 Synced';
-    el.className = 'sync-status sync-ok';
-  } else {
-    el.textContent = '🔴 Offline';
-    el.className = 'sync-status sync-off';
-  }
+  if (snap.val()) { el.textContent = '🟢 Synced'; el.className = 'sync-status sync-ok'; }
+  else { el.textContent = '🔴 Offline'; el.className = 'sync-status sync-off'; }
 });
 
-// Listen to entries
+// Entries listener
 entriesRef.on('value', snap => {
   const data = snap.val();
   if (!data) {
     if (!seeded) {
       seeded = true;
       const seed = [
-        { type:'income', amount:15000, category:'Consulting', date:'2026-03-31', payment:'Bank Transfer', forWhom:'Nina', source:'Infinity Broadband', description:'Consultant fee (partial of PHP 60k) - transferred Rich to Nina', ts: Date.now()-2000 },
-        { type:'income', amount:45000, category:'Consulting', date:'2026-04-01', payment:'MariBank', forWhom:'Family', source:'Infinity Broadband', description:'Balance of PHP 60k consultant fee', ts: Date.now()-1000 }
+        { type:'income', amount:15000, category:'Consulting', date:'2026-03-31', payment:'Bank Transfer', forWhom:'Nina', source:'Infinity Broadband', description:'Consultant fee (partial of PHP 60k) - transferred Rich to Nina', addedBy:'sabari12', device:'🤖 System', ts: Date.now()-2000 },
+        { type:'income', amount:45000, category:'Consulting', date:'2026-04-01', payment:'MariBank', forWhom:'Family', source:'Infinity Broadband', description:'Balance of PHP 60k consultant fee', addedBy:'sabari12', device:'🤖 System', ts: Date.now()-1000 }
       ];
       seed.forEach(e => {
         const ref = entriesRef.push(e);
-        logRef.push({ action:'ADDED', entryId: ref.key, type: e.type, amount: e.amount, category: e.category, source: e.source, description: e.description, ts: Date.now() });
+        writeAudit('ADDED', ref.key, e, 'sabari12', '🤖 System');
       });
     }
     return;
@@ -265,14 +308,30 @@ entriesRef.on('value', snap => {
   render();
 });
 
-// Listen to activity log
+// Audit trail listener
 logRef.on('value', snap => {
   const data = snap.val();
-  if (!data) { activityLog = []; renderLog(); return; }
-  activityLog = Object.entries(data).map(([key, val]) => ({ ...val, _key: key }));
-  activityLog.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  if (!data) { auditLog = []; renderLog(); return; }
+  auditLog = Object.entries(data).map(([key, val]) => ({ ...val, _key: key }));
+  auditLog.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   renderLog();
 });
+
+function writeAudit(action, entryId, entry, user, device) {
+  logRef.push({
+    action,
+    entryId,
+    user: user || 'Unknown',
+    device: device || getDevice(),
+    type: entry.type,
+    amount: entry.amount,
+    category: entry.category || '',
+    source: entry.source || '',
+    description: entry.description || '',
+    date: entry.date || '',
+    ts: Date.now()
+  });
+}
 
 function fmt(n) {
   return '₱' + Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 });
@@ -280,12 +339,11 @@ function fmt(n) {
 
 function fmtTime(ts) {
   if (!ts) return '-';
-  const d = new Date(ts);
-  return d.toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' }) + ' ' +
-         d.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' });
+  return new Date(ts).toLocaleString('en-PH', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
 }
 
 function addEntry() {
+  if (!currentUser) { alert('Please enter your name first (top of page).'); return; }
   const type = document.getElementById('type').value;
   const amount = parseFloat(document.getElementById('amount').value);
   const category = document.getElementById('category').value;
@@ -299,16 +357,9 @@ function addEntry() {
   if (!category) { alert('Please select a category.'); return; }
   if (!date) { alert('Please enter a date.'); return; }
 
-  const entry = { type, amount, category, date, payment, forWhom, source, description, ts: Date.now() };
+  const entry = { type, amount, category, date, payment, forWhom, source, description, addedBy: currentUser, device: getDevice(), ts: Date.now() };
   const newRef = entriesRef.push(entry);
-
-  // Log the addition
-  logRef.push({
-    action: 'ADDED',
-    entryId: newRef.key,
-    type, amount, category, source, description,
-    ts: Date.now()
-  });
+  writeAudit('ADDED', newRef.key, entry, currentUser, getDevice());
 
   document.getElementById('amount').value = '';
   document.getElementById('category').value = '';
@@ -316,17 +367,12 @@ function addEntry() {
   document.getElementById('description').value = '';
 }
 
-function deleteEntry(key, type, amount, category, source, description) {
-  if (!confirm('Delete this entry? This will be recorded in the activity log.')) return;
-
-  // Log the deletion BEFORE removing
-  logRef.push({
-    action: 'DELETED',
-    entryId: key,
-    type, amount, category, source, description,
-    ts: Date.now()
-  });
-
+function deleteEntry(key) {
+  if (!currentUser) { alert('Please enter your name first.'); return; }
+  const entry = entries.find(e => e._key === key);
+  if (!entry) return;
+  if (!confirm(`Delete this entry?\n\n${entry.type.toUpperCase()} · ${fmt(entry.amount)} · ${entry.category}\n\nThis action will be permanently recorded in the audit trail.`)) return;
+  writeAudit('DELETED', key, entry, currentUser, getDevice());
   entriesRef.child(key).remove();
 }
 
@@ -355,9 +401,10 @@ function render() {
       <td>${e.payment || '-'}</td>
       <td>${e.forWhom || '-'}</td>
       <td style="text-align:right" class="type-${e.type}">${e.type === 'income' ? '+' : '-'}${fmt(e.amount)}</td>
-      <td><button class="btn btn-danger" onclick="deleteEntry('${e._key}','${e.type}',${e.amount},'${(e.category||'').replace(/'/g,"\\'")}','${(e.source||'').replace(/'/g,"\\'")}','${(e.description||'').replace(/'/g,"\\'")}')">✕</button></td>
+      <td><span class="who">${e.addedBy || '-'}</span><br><span class="device">${e.device || ''}</span></td>
+      <td><button class="btn btn-danger" onclick="deleteEntry('${e._key}')">✕</button></td>
     </tr>
-  `).join('') || '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">No entries yet</td></tr>';
+  `).join('') || '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">No entries yet</td></tr>';
 
   const totalIncome = entries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
   const totalExpenses = entries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
@@ -368,22 +415,24 @@ function render() {
 
 function renderLog() {
   const logBody = document.getElementById('logBody');
-  logBody.innerHTML = activityLog.map(l => `
+  logBody.innerHTML = auditLog.map(l => `
     <tr>
-      <td class="log-entry">${fmtTime(l.ts)}</td>
+      <td style="white-space:nowrap;font-size:0.75rem;">${fmtTime(l.ts)}</td>
       <td><span class="badge badge-${l.action === 'ADDED' ? 'added' : 'deleted'}">${l.action}</span></td>
+      <td><span class="who">${l.user || '-'}</span></td>
+      <td><span class="device">${l.device || '-'}</span></td>
       <td>${l.type || '-'}</td>
-      <td class="${l.type === 'income' ? 'type-income' : 'type-expense'}">${l.action === 'DELETED' ? '<s>' : ''}${fmt(l.amount || 0)}${l.action === 'DELETED' ? '</s>' : ''}</td>
+      <td class="${l.type === 'income' ? 'type-income' : 'type-expense'}" style="${l.action === 'DELETED' ? 'text-decoration:line-through;opacity:0.6' : ''}">${fmt(l.amount || 0)}</td>
       <td>${l.category || '-'}</td>
       <td>${l.source || '-'}</td>
       <td>${l.description || '-'}</td>
     </tr>
-  `).join('') || '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">No activity yet</td></tr>';
+  `).join('') || '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">No audit records yet</td></tr>';
 }
 
 function exportCSV() {
-  const headers = ['Date','Type','Category','Source/Payee','Description','Payment','For','Amount'];
-  const rows = entries.map(e => [e.date, e.type, e.category, e.source, e.description, e.payment, e.forWhom, e.amount]);
+  const headers = ['Date','Type','Category','Source/Payee','Description','Payment','For','Amount','Added By','Device'];
+  const rows = entries.map(e => [e.date, e.type, e.category, e.source, e.description, e.payment, e.forWhom, e.amount, e.addedBy, e.device]);
   const csv = [headers, ...rows].map(r => r.map(v => `"${v || ''}"`).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv,' + encodeURIComponent(csv);
