@@ -2,240 +2,480 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gella Family Finance Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#050a14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gella Finance">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Gella Family Finance</title>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <style>
+  :root {
+    --bg: #050a14;
+    --bg2: #0a1628;
+    --panel: rgba(18, 32, 54, 0.55);
+    --panel-solid: #121e34;
+    --panel-border: rgba(0, 229, 204, 0.18);
+    --text: #e6eef5;
+    --text-mute: #8b9bad;
+    --teal: #00E5CC;
+    --teal-soft: rgba(0, 229, 204, 0.12);
+    --blue: #0088FF;
+    --amber: #FFB300;
+    --red: #FF4444;
+    --green: #3fb950;
+    --green-soft: rgba(63, 185, 80, 0.12);
+    --red-soft: rgba(255, 68, 68, 0.12);
+    --shadow: 0 8px 30px rgba(0, 136, 255, 0.08);
+    --radius: 14px;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a1a; }
-  header { background: #1a1a2e; color: white; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-  header h1 { font-size: 1.4rem; font-weight: 600; }
-  header p { font-size: 0.85rem; color: #aaa; margin-top: 4px; }
-  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .user-badge { font-size: 0.78rem; background: #2d2d4e; color: #ccc; padding: 4px 10px; border-radius: 20px; }
-  .sync-status { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
-  .sync-ok { background: #16a34a; color: white; }
-  .sync-off { background: #dc2626; color: white; }
-  .sync-ing { background: #f59e0b; color: white; }
-  .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
-  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
-  .card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
-  .card label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
-  .card .amount { font-size: 1.6rem; font-weight: 700; margin-top: 6px; }
-  .income-card .amount { color: #16a34a; }
-  .expense-card .amount { color: #dc2626; }
-  .balance-card .amount { color: #2563eb; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-  .tab { padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 500; background: white; color: #666; }
-  .tab.active { background: #1a1a2e; color: white; }
-  .form-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; }
-  .form-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; }
-  .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  label.field { font-size: 0.8rem; color: #555; display: block; margin-bottom: 4px; }
-  input, select { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; outline: none; }
-  input:focus, select:focus { border-color: #2563eb; }
-  .btn { padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
-  .btn-primary { background: #1a1a2e; color: white; }
-  .btn-danger { background: #dc2626; color: white; font-size: 0.75rem; padding: 5px 10px; border-radius: 6px; }
-  .btn-export { background: #2563eb; color: white; }
-  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; }
-  th { background: #f8f9fa; padding: 12px 14px; text-align: left; font-size: 0.78rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
-  td { padding: 12px 14px; font-size: 0.88rem; border-top: 1px solid #f0f0f0; vertical-align: top; }
-  .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
-  .badge-income { background: #dcfce7; color: #16a34a; }
-  .badge-expense { background: #fee2e2; color: #dc2626; }
-  .badge-added { background: #dbeafe; color: #1d4ed8; }
-  .badge-deleted { background: #fee2e2; color: #dc2626; }
-  .type-income { color: #16a34a; font-weight: 700; }
-  .type-expense { color: #dc2626; font-weight: 700; }
-  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .section-header h3 { font-size: 1rem; font-weight: 600; color: #444; }
-  .audit-note { font-size: 0.75rem; color: #888; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 14px; margin-bottom: 12px; }
-  .who { font-size: 0.75rem; color: #666; }
-  .device { font-size: 0.7rem; color: #999; }
-  .name-prompt { background: #1a1a2e; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .name-prompt input { max-width: 200px; padding: 7px 12px; border-radius: 8px; border: none; font-size: 0.9rem; }
-  .name-prompt button { padding: 7px 16px; background: #886ff4; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
-  .name-prompt span { font-size: 0.9rem; }
-  @media (max-width: 600px) {
+  html, body { height: 100%; -webkit-tap-highlight-color: transparent; }
+  body {
+    background:
+      radial-gradient(ellipse at top, #0a1830 0%, #050a14 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding-bottom: env(safe-area-inset-bottom, 12px);
+  }
+
+  /* ── Header ─────────────────────────────────────── */
+  header {
+    background: rgba(5, 10, 20, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--panel-border);
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    position: sticky; top: 0; z-index: 50;
+  }
+  header h1 {
+    font-size: 16px; font-weight: 600;
+    letter-spacing: 1.5px; color: var(--teal); text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+  header h1 .accent { color: #fff; }
+  header .meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; }
+  .pill {
+    padding: 4px 10px; border-radius: 999px;
+    background: rgba(0, 229, 204, 0.08); color: var(--teal);
+    border: 1px solid var(--panel-border);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    letter-spacing: 0.5px;
+  }
+  .pill.warn { background: rgba(255, 179, 0, 0.1); color: var(--amber);
+               border-color: rgba(255, 179, 0, 0.3); }
+  .pill.bad  { background: rgba(255, 68, 68, 0.1); color: var(--red);
+               border-color: rgba(255, 68, 68, 0.3); }
+  .pill.ok   { background: rgba(63, 185, 80, 0.1); color: var(--green);
+               border-color: rgba(63, 185, 80, 0.3); }
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+         margin-right: 4px; box-shadow: 0 0 6px currentColor; }
+
+  /* ── Layout ─────────────────────────────────────── */
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+  /* ── Summary cards ──────────────────────────────── */
+  .summary {
+    display: grid; gap: 12px;
+    grid-template-columns: repeat(3, 1fr);
+    margin-bottom: 16px;
+  }
+  .stat {
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+  }
+  .stat .k {
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-mute);
+  }
+  .stat .v {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 26px; font-weight: 600; margin-top: 6px;
+    line-height: 1.1;
+  }
+  .stat.income .v { color: var(--green); }
+  .stat.expense .v { color: var(--red); }
+  .stat.balance .v { color: var(--teal); }
+
+  /* ── Action bar (add entry trigger + tabs) ───── */
+  .action-bar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .chips { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+  .chip {
+    padding: 7px 14px; border-radius: 999px;
+    background: var(--panel); color: var(--text-mute);
+    border: 1px solid var(--panel-border);
+    cursor: pointer; font-size: 12px; font-weight: 500;
+    transition: all 0.15s;
+  }
+  .chip:hover { color: var(--text); }
+  .chip.active {
+    background: var(--teal-soft); color: var(--teal);
+    border-color: var(--teal);
+  }
+  .btn {
+    padding: 8px 18px; border-radius: 8px; border: 1px solid var(--panel-border);
+    background: var(--panel); color: var(--text);
+    font: 600 13px/1 inherit; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--teal-soft); border-color: var(--teal); color: var(--teal); }
+  .btn-primary {
+    background: var(--teal); color: #001a16; border-color: var(--teal);
+    font-weight: 700;
+  }
+  .btn-primary:hover { opacity: 0.85; background: var(--teal); color: #001a16; }
+  .btn-danger { background: transparent; color: var(--red); border-color: rgba(255,68,68,0.4); }
+  .btn-danger:hover { background: var(--red-soft); color: var(--red); }
+
+  /* ── Add Entry panel (collapsible) ──────────── */
+  .add-panel {
+    background: var(--panel); backdrop-filter: blur(10px);
+    border: 1px solid var(--panel-border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+    box-shadow: var(--shadow);
+    max-height: 0; transition: max-height 0.35s ease;
+  }
+  .add-panel.open { max-height: 700px; }
+  .add-panel-inner { padding: 18px; }
+  .add-panel h3 {
+    font-size: 11px; letter-spacing: 1.5px; color: var(--teal);
+    text-transform: uppercase; margin-bottom: 14px;
+  }
+  .form-grid {
+    display: grid; gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label {
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--text-mute);
+  }
+  input, select {
+    width: 100%; padding: 10px 12px; min-height: 42px;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text); font: inherit; font-size: 14px;
+    border: 1px solid var(--panel-border); border-radius: 8px;
+    outline: none; transition: border-color 0.15s;
+  }
+  input:focus, select:focus { border-color: var(--teal); }
+  input::placeholder { color: rgba(139, 155, 173, 0.6); }
+  select { cursor: pointer; }
+  /* dark dropdown options */
+  select option { background: var(--panel-solid); color: var(--text); }
+  .form-actions {
+    margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px;
+  }
+
+  /* ── Entries list (cards on mobile, table on desktop) ── */
+  .list { background: var(--panel); backdrop-filter: blur(10px);
+          border: 1px solid var(--panel-border); border-radius: var(--radius);
+          overflow: hidden; box-shadow: var(--shadow); margin-bottom: 16px; }
+  .list-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--panel-border);
+  }
+  .list-header h3 {
+    font-size: 11px; letter-spacing: 1.5px; color: var(--teal);
+    text-transform: uppercase;
+  }
+  .entry {
+    display: grid; gap: 8px;
+    grid-template-columns: 80px 1fr auto;
+    align-items: center;
+    padding: 12px 18px;
+    border-bottom: 1px solid rgba(0, 229, 204, 0.06);
+    transition: background 0.1s;
+  }
+  .entry:hover { background: rgba(0, 229, 204, 0.04); }
+  .entry:last-child { border-bottom: none; }
+  .entry .date {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px; color: var(--text-mute);
+  }
+  .entry .body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .entry .row1 {
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  }
+  .entry .source { font-weight: 600; color: var(--text); }
+  .entry .cat-tag {
+    font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase;
+    background: var(--teal-soft); color: var(--teal);
+    padding: 2px 8px; border-radius: 999px;
+    border: 1px solid rgba(0, 229, 204, 0.2);
+  }
+  .entry .meta {
+    font-size: 11px; color: var(--text-mute);
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .entry .amount {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 16px; font-weight: 700;
+    text-align: right; white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .entry.income .amount { color: var(--green); }
+  .entry.expense .amount { color: var(--red); }
+  .delete-btn {
+    background: transparent; border: none; color: rgba(255, 68, 68, 0.4);
+    cursor: pointer; font-size: 16px; padding: 4px 8px;
+    transition: color 0.15s;
+  }
+  .delete-btn:hover { color: var(--red); }
+  .empty {
+    padding: 40px 20px; text-align: center; color: var(--text-mute);
+    font-style: italic;
+  }
+
+  /* ── Audit log (compact) ──────────────────── */
+  .audit {
+    background: var(--panel); backdrop-filter: blur(10px);
+    border: 1px solid var(--panel-border); border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .audit-banner {
+    background: rgba(255, 179, 0, 0.08); color: var(--amber);
+    border-bottom: 1px solid rgba(255, 179, 0, 0.2);
+    padding: 10px 18px; font-size: 11px;
+  }
+  .audit-row {
+    display: grid; grid-template-columns: 110px 70px 1fr;
+    gap: 10px; padding: 8px 18px;
+    border-bottom: 1px solid rgba(0, 229, 204, 0.05);
+    font-size: 12px;
+  }
+  .audit-row:last-child { border-bottom: none; }
+  .audit-row .when {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--text-mute);
+  }
+  .audit-row .act { font-weight: 600; font-size: 10px; letter-spacing: 0.5px; }
+  .act.added { color: var(--green); }
+  .act.deleted { color: var(--red); }
+
+  /* ── Mobile (< 640px) ─────────────────────── */
+  @media (max-width: 640px) {
+    main { padding: 12px; }
     .summary { grid-template-columns: 1fr; }
+    .stat .v { font-size: 22px; }
     .form-grid { grid-template-columns: 1fr; }
-    th, td { padding: 8px 8px; font-size: 0.78rem; }
+    .entry { grid-template-columns: 1fr auto; gap: 4px 12px; }
+    .entry .date { grid-column: 1 / -1; font-size: 10px; }
+    .entry .body { grid-column: 1; }
+    .entry .amount { grid-column: 2; grid-row: 2; align-self: end; }
+    /* fix iOS zoom on input focus */
+    input, select { font-size: 16px; }
+    /* sticky add-entry FAB on mobile */
+    .fab {
+      position: fixed; bottom: 16px; right: 16px;
+      width: 56px; height: 56px; border-radius: 28px;
+      background: var(--teal); color: #001a16;
+      border: none; cursor: pointer;
+      font-size: 28px; font-weight: 700;
+      box-shadow: 0 4px 16px rgba(0, 229, 204, 0.4);
+      z-index: 60;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .fab:active { transform: scale(0.94); }
+    .desktop-add-btn { display: none; }
+    .audit-row { grid-template-columns: 1fr auto; gap: 4px; }
+    .audit-row .when { grid-column: 1; }
+    .audit-row .act { grid-column: 2; }
+    .audit-row .body { grid-column: 1 / -1; }
+  }
+  @media (min-width: 641px) {
+    .fab { display: none; }
+  }
+
+  /* ── Name prompt ────────────────────────── */
+  .name-prompt {
+    background: rgba(0, 229, 204, 0.08);
+    border-bottom: 1px solid var(--panel-border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-size: 13px;
+  }
+  .name-prompt input { max-width: 200px; min-height: 36px; padding: 6px 10px; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 229, 204, 0.2); border-radius: 4px;
   }
 </style>
 </head>
 <body>
 
-<!-- Name prompt -->
 <div class="name-prompt" id="namePrompt">
-  <span>👤 Who are you?</span>
-  <input type="text" id="nameInput" placeholder="e.g. Rich or Nina" maxlength="30">
-  <button onclick="setUser()">Set Name</button>
+  <span>👤 Who's adding entries?</span>
+  <input type="text" id="nameInput" placeholder="Rich or Nina" maxlength="30">
+  <button class="btn btn-primary" onclick="setUser()">Continue</button>
 </div>
 
 <header>
-  <div>
-    <h1>💰 Gella Family Finance Tracker</h1>
-    <p>Rich & Nina · Real-time sync</p>
-  </div>
-  <div class="header-right">
-    <span class="user-badge" id="userBadge">👤 Not set</span>
-    <span class="sync-status sync-ing" id="syncStatus">Connecting...</span>
+  <h1>▲ GELLA · <span class="accent">FINANCE</span></h1>
+  <div class="meta">
+    <span class="pill" id="userBadge">👤 —</span>
+    <span class="pill warn" id="syncStatus"><span class="dot"></span>connecting</span>
   </div>
 </header>
 
-<div class="container">
+<main>
+
   <!-- Summary -->
-  <div class="summary">
-    <div class="card income-card">
-      <label>Total Income</label>
-      <div class="amount" id="totalIncome">₱0</div>
+  <section class="summary">
+    <div class="stat income">
+      <div class="k">Income</div>
+      <div class="v" id="totalIncome">₱0</div>
     </div>
-    <div class="card expense-card">
-      <label>Total Expenses</label>
-      <div class="amount" id="totalExpenses">₱0</div>
+    <div class="stat expense">
+      <div class="k">Expenses</div>
+      <div class="v" id="totalExpenses">₱0</div>
     </div>
-    <div class="card balance-card">
-      <label>Net Balance</label>
-      <div class="amount" id="netBalance">₱0</div>
+    <div class="stat balance">
+      <div class="k">Net</div>
+      <div class="v" id="netBalance">₱0</div>
     </div>
+  </section>
+
+  <!-- Filter chips + add-entry button -->
+  <div class="action-bar">
+    <div class="chips">
+      <button class="chip active" data-filter="all" onclick="setFilter('all')">All</button>
+      <button class="chip" data-filter="income" onclick="setFilter('income')">Income</button>
+      <button class="chip" data-filter="expense" onclick="setFilter('expense')">Expenses</button>
+      <button class="chip" data-filter="thisMonth" onclick="setFilter('thisMonth')">This Month</button>
+    </div>
+    <button class="btn btn-primary desktop-add-btn" onclick="toggleAddPanel()">＋ Add Entry</button>
+    <button class="btn" onclick="exportCSV()">📥 CSV</button>
   </div>
 
-  <!-- Add Entry -->
-  <div class="form-card">
-    <h2>➕ Add Entry</h2>
-    <div class="form-grid">
-      <div>
-        <label class="field">Type *</label>
-        <select id="type">
-          <option value="income">Income</option>
-          <option value="expense">Expense</option>
-        </select>
+  <!-- Add Entry (collapsible) -->
+  <section class="add-panel" id="addPanel">
+    <div class="add-panel-inner">
+      <h3>＋ New Entry</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label>Type</label>
+          <select id="type">
+            <option value="income">Income</option>
+            <option value="expense" selected>Expense</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Amount (PHP)</label>
+          <input type="number" id="amount" placeholder="0.00" step="0.01" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label>Category</label>
+          <select id="category">
+            <option value="">— select —</option>
+            <optgroup label="Income">
+              <option>Consulting</option>
+              <option>Salary</option>
+              <option>Business</option>
+              <option>Transfer Received</option>
+              <option>Other Income</option>
+            </optgroup>
+            <optgroup label="Expenses">
+              <option>Food</option>
+              <option>Transport</option>
+              <option>Utilities</option>
+              <option>Health</option>
+              <option>Education</option>
+              <option>Shopping</option>
+              <option>Entertainment</option>
+              <option>Household</option>
+              <option>Personal</option>
+              <option>Family</option>
+              <option>Kids</option>
+              <option>Travel</option>
+              <option>Subscriptions</option>
+              <option>Other</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="date">
+        </div>
+        <div class="field">
+          <label>Payment</label>
+          <select id="payment">
+            <option value="">— select —</option>
+            <option>Cash</option>
+            <option>Card</option>
+            <option>GCash</option>
+            <option>Maya</option>
+            <option>Bank</option>
+            <option>MariBank</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>For</label>
+          <select id="forWhom">
+            <option value="">— select —</option>
+            <option>Rich</option>
+            <option>Nina</option>
+            <option>Family</option>
+            <option>Kids</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column: 1 / -1;">
+          <label>Source / Payee</label>
+          <input type="text" id="source" placeholder="e.g. SM Supermarket, Mendokoro, Infinity Broadband">
+        </div>
+        <div class="field" style="grid-column: 1 / -1;">
+          <label>Note (optional)</label>
+          <input type="text" id="description" placeholder="anything to remember about this">
+        </div>
       </div>
-      <div>
-        <label class="field">Amount (PHP) *</label>
-        <input type="number" id="amount" placeholder="0.00" step="0.01">
-      </div>
-      <div>
-        <label class="field">Category *</label>
-        <select id="category">
-          <option value="">-- Select --</option>
-          <optgroup label="Income">
-            <option>Consulting</option>
-            <option>Salary</option>
-            <option>Business</option>
-            <option>Transfer Received</option>
-            <option>Other Income</option>
-          </optgroup>
-          <optgroup label="Expenses">
-            <option>Food & Dining</option>
-            <option>Transportation</option>
-            <option>Utilities</option>
-            <option>Healthcare</option>
-            <option>Education</option>
-            <option>Shopping</option>
-            <option>Entertainment</option>
-            <option>Household</option>
-            <option>Personal Care</option>
-            <option>Other Expense</option>
-          </optgroup>
-        </select>
-      </div>
-      <div>
-        <label class="field">Date *</label>
-        <input type="date" id="date">
-      </div>
-      <div>
-        <label class="field">Payment Method</label>
-        <select id="payment">
-          <option value="">-- Select --</option>
-          <option>Cash</option>
-          <option>Credit Card</option>
-          <option>Bank Transfer</option>
-          <option>GCash</option>
-          <option>Maya</option>
-          <option>MariBank</option>
-          <option>Other</option>
-        </select>
-      </div>
-      <div>
-        <label class="field">For</label>
-        <select id="forWhom">
-          <option value="">-- Select --</option>
-          <option>Family</option>
-          <option>Rich</option>
-          <option>Nina</option>
-          <option>Personal</option>
-        </select>
-      </div>
-      <div>
-        <label class="field">Source / Payee</label>
-        <input type="text" id="source" placeholder="e.g. Infinity Broadband">
-      </div>
-      <div>
-        <label class="field">Description / Note</label>
-        <input type="text" id="description" placeholder="Optional notes">
+      <div class="form-actions">
+        <button class="btn" onclick="toggleAddPanel()">Cancel</button>
+        <button class="btn btn-primary" onclick="addEntry()">Save</button>
       </div>
     </div>
-    <div style="margin-top:16px; text-align:right;">
-      <button class="btn btn-primary" onclick="addEntry()">Add Entry</button>
+  </section>
+
+  <!-- Entries -->
+  <section class="list">
+    <div class="list-header">
+      <h3>📋 Entries</h3>
+      <span class="pill" id="entryCount">0</span>
     </div>
-  </div>
+    <div id="tableBody"></div>
+  </section>
 
-  <!-- Entries Table -->
-  <div class="section-header">
-    <h3>📋 Entries</h3>
-    <button class="btn btn-export" onclick="exportCSV()">📥 Export CSV</button>
-  </div>
-  <div class="tabs">
-    <button class="tab active" onclick="filterTable('all', this)">All</button>
-    <button class="tab" onclick="filterTable('income', this)">Income</button>
-    <button class="tab" onclick="filterTable('expense', this)">Expenses</button>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>Type</th>
-        <th>Category</th>
-        <th>Source / Payee</th>
-        <th>Description</th>
-        <th>Payment</th>
-        <th>For</th>
-        <th style="text-align:right">Amount</th>
-        <th>Added By</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody id="tableBody"></tbody>
-  </table>
+  <!-- Audit -->
+  <section class="audit">
+    <div class="list-header">
+      <h3>🔐 Audit Trail</h3>
+      <button class="btn" onclick="toggleLog()" id="logToggle">Hide</button>
+    </div>
+    <div class="audit-banner">
+      ⚠️ Audit is read-only and cannot be deleted. Every change is permanently recorded.
+    </div>
+    <div id="logSection"><div id="logBody"></div></div>
+  </section>
 
-  <!-- Audit Trail -->
-  <div class="section-header">
-    <h3>🔐 Audit Trail</h3>
-    <button class="btn" style="background:#f3f4f6;color:#555;font-size:0.8rem;padding:6px 14px;" onclick="toggleLog()">Show/Hide</button>
-  </div>
-  <div class="audit-note">⚠️ The audit trail is <strong>read-only</strong> and cannot be deleted. Every addition and deletion is permanently recorded with the user, device, and timestamp.</div>
-  <div id="logSection">
-    <table>
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>Action</th>
-          <th>By</th>
-          <th>Device</th>
-          <th>Type</th>
-          <th>Amount</th>
-          <th>Category</th>
-          <th>Source / Payee</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody id="logBody"></tbody>
-    </table>
-  </div>
-</div>
+</main>
+
+<button class="fab" onclick="toggleAddPanel()" aria-label="Add entry">＋</button>
 
 <script>
 const firebaseConfig = { databaseURL: "https://finance-tracker-gella-default-rtdb.firebaseio.com/" };
@@ -247,10 +487,8 @@ const logRef = db.ref('auditTrail');
 let entries = [];
 let auditLog = [];
 let currentFilter = 'all';
-let seeded = false;
 let logVisible = true;
 
-// User identity
 let currentUser = localStorage.getItem('gella_user') || '';
 updateUserDisplay();
 
@@ -264,7 +502,7 @@ function setUser() {
 }
 
 function updateUserDisplay() {
-  document.getElementById('userBadge').textContent = '👤 ' + (currentUser || 'Not set');
+  document.getElementById('userBadge').textContent = '👤 ' + (currentUser || '—');
   if (currentUser) document.getElementById('namePrompt').style.display = 'none';
 }
 
@@ -273,42 +511,26 @@ function getDevice() {
   if (/iPhone|iPad|iPod/.test(ua)) return '📱 iOS';
   if (/Android/.test(ua)) return '📱 Android';
   if (/Mac/.test(ua)) return '💻 Mac';
-  if (/Windows/.test(ua)) return '💻 Windows';
-  return '🖥️ Browser';
+  if (/Windows/.test(ua)) return '💻 Win';
+  return '🖥️ Web';
 }
 
 document.getElementById('date').value = new Date().toISOString().split('T')[0];
 
-// Connection status
 db.ref('.info/connected').on('value', snap => {
   const el = document.getElementById('syncStatus');
-  if (snap.val()) { el.textContent = '🟢 Synced'; el.className = 'sync-status sync-ok'; }
-  else { el.textContent = '🔴 Offline'; el.className = 'sync-status sync-off'; }
+  if (snap.val()) { el.innerHTML = '<span class="dot"></span>synced'; el.className = 'pill ok'; }
+  else { el.innerHTML = '<span class="dot"></span>offline'; el.className = 'pill bad'; }
 });
 
-// Entries listener
 entriesRef.on('value', snap => {
   const data = snap.val();
-  if (!data) {
-    if (!seeded) {
-      seeded = true;
-      const seed = [
-        { type:'income', amount:15000, category:'Consulting', date:'2026-03-31', payment:'Bank Transfer', forWhom:'Nina', source:'Infinity Broadband', description:'Consultant fee (partial of PHP 60k) - transferred Rich to Nina', addedBy:'sabari12', device:'🤖 System', ts: Date.now()-2000 },
-        { type:'income', amount:45000, category:'Consulting', date:'2026-04-01', payment:'MariBank', forWhom:'Family', source:'Infinity Broadband', description:'Balance of PHP 60k consultant fee', addedBy:'sabari12', device:'🤖 System', ts: Date.now()-1000 }
-      ];
-      seed.forEach(e => {
-        const ref = entriesRef.push(e);
-        writeAudit('ADDED', ref.key, e, 'sabari12', '🤖 System');
-      });
-    }
-    return;
-  }
+  if (!data) { entries = []; render(); return; }
   entries = Object.entries(data).map(([key, val]) => ({ ...val, _key: key }));
   entries.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   render();
 });
 
-// Audit trail listener
 logRef.on('value', snap => {
   const data = snap.val();
   if (!data) { auditLog = []; renderLog(); return; }
@@ -319,12 +541,10 @@ logRef.on('value', snap => {
 
 function writeAudit(action, entryId, entry, user, device) {
   logRef.push({
-    action,
-    entryId,
+    action, entryId,
     user: user || 'Unknown',
     device: device || getDevice(),
-    type: entry.type,
-    amount: entry.amount,
+    type: entry.type, amount: entry.amount,
     category: entry.category || '',
     source: entry.source || '',
     description: entry.description || '',
@@ -334,16 +554,32 @@ function writeAudit(action, entryId, entry, user, device) {
 }
 
 function fmt(n) {
-  return '₱' + Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+  return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtTime(ts) {
   if (!ts) return '-';
-  return new Date(ts).toLocaleString('en-PH', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  return new Date(ts).toLocaleString('en-PH', {
+    month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+  });
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+}
+
+function toggleAddPanel() {
+  const p = document.getElementById('addPanel');
+  p.classList.toggle('open');
+  if (p.classList.contains('open')) {
+    setTimeout(() => document.getElementById('amount').focus(), 200);
+  }
 }
 
 function addEntry() {
-  if (!currentUser) { alert('Please enter your name first (top of page).'); return; }
+  if (!currentUser) { alert('Please enter your name first.'); return; }
   const type = document.getElementById('type').value;
   const amount = parseFloat(document.getElementById('amount').value);
   const category = document.getElementById('category').value;
@@ -353,90 +589,132 @@ function addEntry() {
   const source = document.getElementById('source').value;
   const description = document.getElementById('description').value;
 
-  if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
-  if (!category) { alert('Please select a category.'); return; }
-  if (!date) { alert('Please enter a date.'); return; }
+  if (!amount || amount <= 0) { alert('Enter a valid amount.'); return; }
+  if (!category) { alert('Select a category.'); return; }
+  if (!date) { alert('Select a date.'); return; }
 
-  const entry = { type, amount, category, date, payment, forWhom, source, description, addedBy: currentUser, device: getDevice(), ts: Date.now() };
+  const entry = { type, amount, category, date, payment, forWhom, source, description,
+                  addedBy: currentUser, device: getDevice(), ts: Date.now() };
   const newRef = entriesRef.push(entry);
   writeAudit('ADDED', newRef.key, entry, currentUser, getDevice());
 
-  document.getElementById('amount').value = '';
-  document.getElementById('category').value = '';
-  document.getElementById('source').value = '';
-  document.getElementById('description').value = '';
+  ['amount', 'category', 'source', 'description'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('addPanel').classList.remove('open');
 }
 
 function deleteEntry(key) {
   if (!currentUser) { alert('Please enter your name first.'); return; }
   const entry = entries.find(e => e._key === key);
   if (!entry) return;
-  if (!confirm(`Delete this entry?\n\n${entry.type.toUpperCase()} · ${fmt(entry.amount)} · ${entry.category}\n\nThis action will be permanently recorded in the audit trail.`)) return;
+  if (!confirm(`Delete this ${entry.type}?\n${fmt(entry.amount)} · ${entry.category || ''}\n\nWill be recorded in audit.`)) return;
   writeAudit('DELETED', key, entry, currentUser, getDevice());
   entriesRef.child(key).remove();
 }
 
-function filterTable(type, btn) {
-  currentFilter = type;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.filter === f));
   render();
 }
 
 function toggleLog() {
   logVisible = !logVisible;
   document.getElementById('logSection').style.display = logVisible ? 'block' : 'none';
+  document.getElementById('logToggle').textContent = logVisible ? 'Hide' : 'Show';
+}
+
+function applyFilter(list) {
+  if (currentFilter === 'income' || currentFilter === 'expense') {
+    return list.filter(e => e.type === currentFilter);
+  }
+  if (currentFilter === 'thisMonth') {
+    const now = new Date();
+    const ymPrefix = now.toISOString().slice(0, 7); // 'YYYY-MM'
+    return list.filter(e => (e.date || '').startsWith(ymPrefix));
+  }
+  return list;
 }
 
 function render() {
-  const filtered = currentFilter === 'all' ? entries : entries.filter(e => e.type === currentFilter);
+  const filtered = applyFilter(entries);
   const tbody = document.getElementById('tableBody');
-  tbody.innerHTML = filtered.map(e => `
-    <tr>
-      <td>${e.date}</td>
-      <td><span class="badge badge-${e.type}">${e.type === 'income' ? 'Income' : 'Expense'}</span></td>
-      <td>${e.category || '-'}</td>
-      <td>${e.source || '-'}</td>
-      <td>${e.description || '-'}</td>
-      <td>${e.payment || '-'}</td>
-      <td>${e.forWhom || '-'}</td>
-      <td style="text-align:right" class="type-${e.type}">${e.type === 'income' ? '+' : '-'}${fmt(e.amount)}</td>
-      <td><span class="who">${e.addedBy || '-'}</span><br><span class="device">${e.device || ''}</span></td>
-      <td><button class="btn btn-danger" onclick="deleteEntry('${e._key}')">✕</button></td>
-    </tr>
-  `).join('') || '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">No entries yet</td></tr>';
 
-  const totalIncome = entries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
-  const totalExpenses = entries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
+  if (!filtered.length) {
+    tbody.innerHTML = '<div class="empty">No entries yet — tap ＋ to add one.</div>';
+  } else {
+    tbody.innerHTML = filtered.map(e => `
+      <div class="entry ${e.type}">
+        <div class="date">${fmtDate(e.date)}</div>
+        <div class="body">
+          <div class="row1">
+            <span class="source">${escapeHtml(e.source || e.category || '—')}</span>
+            ${e.category ? `<span class="cat-tag">${escapeHtml(e.category)}</span>` : ''}
+          </div>
+          <div class="meta">
+            ${e.payment ? `<span>${escapeHtml(e.payment)}</span>` : ''}
+            ${e.forWhom ? `<span>· for ${escapeHtml(e.forWhom)}</span>` : ''}
+            ${e.description ? `<span>· ${escapeHtml(e.description)}</span>` : ''}
+            <span>· by ${escapeHtml(e.addedBy || '?')}${e.device ? ' ' + escapeHtml(e.device) : ''}</span>
+          </div>
+        </div>
+        <div class="amount">
+          ${e.type === 'income' ? '+' : '−'}${fmt(e.amount)}
+          <button class="delete-btn" onclick="deleteEntry('${e._key}')" aria-label="Delete">✕</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('entryCount').textContent = filtered.length + (filtered.length === entries.length ? '' : ' / ' + entries.length);
+
+  const totalIncome = entries.filter(e => e.type === 'income').reduce((s, e) => s + Number(e.amount || 0), 0);
+  const totalExpenses = entries.filter(e => e.type === 'expense').reduce((s, e) => s + Number(e.amount || 0), 0);
   document.getElementById('totalIncome').textContent = fmt(totalIncome);
   document.getElementById('totalExpenses').textContent = fmt(totalExpenses);
-  document.getElementById('netBalance').textContent = fmt(totalIncome - totalExpenses);
+  const net = totalIncome - totalExpenses;
+  const balEl = document.getElementById('netBalance');
+  balEl.textContent = (net >= 0 ? '' : '−') + fmt(Math.abs(net));
+  balEl.style.color = net >= 0 ? 'var(--teal)' : 'var(--red)';
 }
 
 function renderLog() {
   const logBody = document.getElementById('logBody');
-  logBody.innerHTML = auditLog.map(l => `
-    <tr>
-      <td style="white-space:nowrap;font-size:0.75rem;">${fmtTime(l.ts)}</td>
-      <td><span class="badge badge-${l.action === 'ADDED' ? 'added' : 'deleted'}">${l.action}</span></td>
-      <td><span class="who">${l.user || '-'}</span></td>
-      <td><span class="device">${l.device || '-'}</span></td>
-      <td>${l.type || '-'}</td>
-      <td class="${l.type === 'income' ? 'type-income' : 'type-expense'}" style="${l.action === 'DELETED' ? 'text-decoration:line-through;opacity:0.6' : ''}">${fmt(l.amount || 0)}</td>
-      <td>${l.category || '-'}</td>
-      <td>${l.source || '-'}</td>
-      <td>${l.description || '-'}</td>
-    </tr>
-  `).join('') || '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">No audit records yet</td></tr>';
+  if (!auditLog.length) {
+    logBody.innerHTML = '<div class="empty">No audit records yet</div>';
+    return;
+  }
+  logBody.innerHTML = auditLog.slice(0, 50).map(l => `
+    <div class="audit-row">
+      <span class="when">${fmtTime(l.ts)}</span>
+      <span class="act ${l.action === 'ADDED' ? 'added' : 'deleted'}">${l.action}</span>
+      <span class="body" style="color: var(--text-mute);">
+        <span style="color:${l.type === 'income' ? 'var(--green)' : 'var(--red)'}">${fmt(l.amount || 0)}</span>
+        · ${escapeHtml(l.category || '?')}
+        ${l.source ? '· ' + escapeHtml(l.source) : ''}
+        · ${escapeHtml(l.user || '?')} ${escapeHtml(l.device || '')}
+      </span>
+    </div>
+  `).join('');
+  if (auditLog.length > 50) {
+    logBody.innerHTML += `<div class="audit-row" style="color: var(--text-mute); justify-content: center;">… and ${auditLog.length - 50} more</div>`;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[c]);
 }
 
 function exportCSV() {
   const headers = ['Date','Type','Category','Source/Payee','Description','Payment','For','Amount','Added By','Device'];
   const rows = entries.map(e => [e.date, e.type, e.category, e.source, e.description, e.payment, e.forWhom, e.amount, e.addedBy, e.device]);
-  const csv = [headers, ...rows].map(r => r.map(v => `"${v || ''}"`).join(',')).join('\n');
+  const csv = [headers, ...rows].map(r => r.map(v => `"${(v ?? '').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = document.createElement('a');
-  a.href = 'data:text/csv,' + encodeURIComponent(csv);
-  a.download = 'gella-finances.csv';
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `gella-finances-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
 </script>
