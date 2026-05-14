@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Gella Finance">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Gella Family Finance</title>
+<!-- Sprint 23.D REMAINDER — Sabari V4 brain integration + 3-ledger + extensible types + budget warn-mode + custom fields -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <style>
@@ -80,6 +81,105 @@
 
   /* ── Layout ─────────────────────────────────────── */
   main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+  /* ── Sprint 23.D REMAINDER 3-ledger tabs ────────── */
+  .ledger-tabs {
+    display: flex; gap: 6px;
+    margin: 0 0 14px;
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ledger-tab {
+    background: transparent;
+    color: var(--text-mute);
+    border: 1px solid transparent;
+    padding: 8px 14px;
+    font-size: 13px; font-weight: 500;
+    border-radius: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    font-family: inherit;
+  }
+  .ledger-tab:hover { color: var(--text); background: rgba(0, 229, 204, 0.06); }
+  .ledger-tab.active {
+    background: var(--teal-soft);
+    color: var(--teal);
+    border-color: rgba(0, 229, 204, 0.3);
+  }
+
+  /* ── Sprint 23.D REMAINDER budget summary ───────── */
+  .budget-summary {
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .budget-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 10px 12px;
+    margin: 6px 0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .budget-row .bm-label {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .budget-row .bm-cat { font-size: 13px; font-weight: 500; color: var(--text); }
+  .budget-row .bm-meta { font-size: 11px; color: var(--text-mute); }
+  .budget-row .bm-value { text-align: right; }
+  .budget-row .bm-pct { font-size: 13px; font-weight: 600; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .budget-row .bm-bar {
+    width: 100%; height: 4px; margin-top: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px; overflow: hidden;
+    grid-column: 1 / -1;
+  }
+  .budget-row .bm-bar .bm-fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
+  .budget-row.green .bm-pct { color: var(--green); }
+  .budget-row.green .bm-fill { background: var(--green); }
+  .budget-row.amber .bm-pct { color: var(--amber); }
+  .budget-row.amber .bm-fill { background: var(--amber); }
+  .budget-row.red .bm-pct { color: var(--red); }
+  .budget-row.red .bm-fill { background: var(--red); }
+
+  /* ── Sprint 23.D REMAINDER search input + custom fields ─ */
+  .search-input {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    min-width: 200px;
+    font-family: inherit;
+  }
+  .search-input:focus {
+    outline: none;
+    border-color: rgba(0, 229, 204, 0.5);
+  }
+  .cat-tag.recurring {
+    background: rgba(255, 179, 0, 0.12);
+    color: var(--amber);
+    border-color: rgba(255, 179, 0, 0.3);
+  }
+  #customFieldsGrid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
 
   /* ── Summary cards ──────────────────────────────── */
   .summary {
@@ -352,6 +452,23 @@
     </div>
   </section>
 
+  <!-- Sprint 23.D REMAINDER — 3-ledger explicit tabs (per memory #6 UPDATED) -->
+  <div class="ledger-tabs" id="ledgerTabs" role="tablist">
+    <button class="ledger-tab active" data-ledger="all" onclick="setLedger('all')" role="tab">📊 All</button>
+    <button class="ledger-tab" data-ledger="richgella" onclick="setLedger('richgella')" role="tab">👤 Rich</button>
+    <button class="ledger-tab" data-ledger="nina" onclick="setLedger('nina')" role="tab">👤 Nina</button>
+    <button class="ledger-tab" data-ledger="family" onclick="setLedger('family')" role="tab">👪 Family</button>
+  </div>
+
+  <!-- Sprint 23.D REMAINDER — Budget warn-mode summary (Q4 inform-only) -->
+  <section class="budget-summary" id="budgetSummary" style="display:none;">
+    <div class="list-header">
+      <h3>💰 Budgets <span class="pill" style="font-size:10px;">warn-mode</span></h3>
+      <span class="pill" id="budgetCount">0</span>
+    </div>
+    <div id="budgetGrid"></div>
+  </section>
+
   <!-- Filter chips + add-entry button -->
   <div class="action-bar">
     <div class="chips">
@@ -359,7 +476,9 @@
       <button class="chip" data-filter="income" onclick="setFilter('income')">Income</button>
       <button class="chip" data-filter="expense" onclick="setFilter('expense')">Expenses</button>
       <button class="chip" data-filter="thisMonth" onclick="setFilter('thisMonth')">This Month</button>
+      <button class="chip" data-filter="recurring" onclick="setFilter('recurring')">🔁 Recurring</button>
     </div>
+    <input type="search" id="searchBox" placeholder="🔍 search merchant/note…" oninput="setSearch(this.value)" class="search-input">
     <button class="btn btn-primary desktop-add-btn" onclick="toggleAddPanel()">＋ Add Entry</button>
     <button class="btn" onclick="exportCSV()">📥 CSV</button>
   </div>
@@ -444,6 +563,8 @@
           <label>Note (optional)</label>
           <input type="text" id="description" placeholder="anything to remember about this">
         </div>
+        <!-- Sprint 23.D REMAINDER — reactive custom_fields_schema render slot -->
+        <div id="customFieldsGrid"></div>
       </div>
       <div class="form-actions">
         <button class="btn" onclick="toggleAddPanel()">Cancel</button>
@@ -483,11 +604,29 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const entriesRef = db.ref('entries');
 const logRef = db.ref('auditTrail');
+// Sprint 23.D REMAINDER — Sabari V4 brain-side collections
+const expenseTypesRef = db.ref('expense_types');
+const customFieldsRef = db.ref('custom_fields_schema');
+const budgetsRef = db.ref('budgets');
 
 let entries = [];
 let auditLog = [];
+let expenseTypes = [];
+let customFields = [];
+let budgets = [];
 let currentFilter = 'all';
+let currentLedger = 'all';
+let currentSearch = '';
 let logVisible = true;
+
+// 3-ledger ↔ forWhom mapping per memory #6 UPDATED. Webapp empirically
+// preserves V3 4-value forWhom enum (Rich/Nina/Family/Kids); 3-ledger
+// view collapses Kids→Family per operator Sprint 23.D Group 0 decision.
+const LEDGER_TO_FORWHOM = {
+  'richgella': ['Rich'],
+  'nina': ['Nina'],
+  'family': ['Family', 'Kids'],
+};
 
 let currentUser = localStorage.getItem('gella_user') || '';
 updateUserDisplay();
@@ -537,6 +676,31 @@ logRef.on('value', snap => {
   auditLog = Object.entries(data).map(([key, val]) => ({ ...val, _key: key }));
   auditLog.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   renderLog();
+});
+
+// Sprint 23.D REMAINDER — reactive load of Sabari brain-side schemas
+expenseTypesRef.on('value', snap => {
+  const data = snap.val() || {};
+  expenseTypes = Object.entries(data)
+    .map(([key, val]) => ({ ...val, _key: key }))
+    .filter(t => t.active !== false);
+  renderCategoryDropdown();
+});
+
+customFieldsRef.on('value', snap => {
+  const data = snap.val() || {};
+  customFields = Object.entries(data)
+    .map(([key, val]) => ({ ...val, _key: key }))
+    .filter(f => f.active !== false);
+  renderCustomFields();
+});
+
+budgetsRef.on('value', snap => {
+  const data = snap.val() || {};
+  budgets = Object.entries(data)
+    .map(([key, val]) => ({ ...val, _key: key }))
+    .filter(b => b.active !== false);
+  renderBudgets();
 });
 
 function writeAudit(action, entryId, entry, user, device) {
@@ -593,14 +757,26 @@ function addEntry() {
   if (!category) { alert('Select a category.'); return; }
   if (!date) { alert('Select a date.'); return; }
 
+  // Sprint 23.D REMAINDER — collect custom fields if any are rendered
+  const customFieldsPayload = {};
+  document.querySelectorAll('[data-cf-name]').forEach(el => {
+    const k = el.dataset.cfName;
+    const v = el.value;
+    if (k && v !== '' && v != null) customFieldsPayload[k] = v;
+  });
+
   const entry = { type, amount, category, date, payment, forWhom, source, description,
                   addedBy: currentUser, device: getDevice(), ts: Date.now() };
+  if (Object.keys(customFieldsPayload).length) {
+    entry.custom_fields = customFieldsPayload;
+  }
   const newRef = entriesRef.push(entry);
   writeAudit('ADDED', newRef.key, entry, currentUser, getDevice());
 
   ['amount', 'category', 'source', 'description'].forEach(id => {
     document.getElementById(id).value = '';
   });
+  document.querySelectorAll('[data-cf-name]').forEach(el => { el.value = ''; });
   document.getElementById('addPanel').classList.remove('open');
 }
 
@@ -619,6 +795,40 @@ function setFilter(f) {
   render();
 }
 
+// Sprint 23.D REMAINDER — 3-ledger tab handler
+function setLedger(l) {
+  currentLedger = l;
+  document.querySelectorAll('.ledger-tab').forEach(t => t.classList.toggle('active', t.dataset.ledger === l));
+  render();
+  renderBudgets();
+}
+
+// Sprint 23.D REMAINDER — search box handler
+function setSearch(q) {
+  currentSearch = (q || '').toLowerCase().trim();
+  render();
+}
+
+// Sprint 23.D REMAINDER — apply 3-ledger filter on top of existing
+// type/period filter. Webapp empirically maps forWhom value back to
+// the 3-ledger model.
+function applyLedger(list) {
+  if (currentLedger === 'all') return list;
+  const allowedForwhom = LEDGER_TO_FORWHOM[currentLedger] || [];
+  return list.filter(e => allowedForwhom.includes(e.forWhom));
+}
+
+function applySearch(list) {
+  if (!currentSearch) return list;
+  return list.filter(e => {
+    const blob = [
+      e.source || '', e.description || '',
+      e.category || '', e.forWhom || '',
+    ].join(' ').toLowerCase();
+    return blob.includes(currentSearch);
+  });
+}
+
 function toggleLog() {
   logVisible = !logVisible;
   document.getElementById('logSection').style.display = logVisible ? 'block' : 'none';
@@ -634,15 +844,21 @@ function applyFilter(list) {
     const ymPrefix = now.toISOString().slice(0, 7); // 'YYYY-MM'
     return list.filter(e => (e.date || '').startsWith(ymPrefix));
   }
+  if (currentFilter === 'recurring') {
+    // Sprint 23.D REMAINDER Q5 α — flagged recurring entries only
+    return list.filter(e => e.recurring === true);
+  }
   return list;
 }
 
 function render() {
-  const filtered = applyFilter(entries);
+  // Sprint 23.D REMAINDER — chain through ledger + search + filter
+  const ledgerScoped = applyLedger(entries);
+  const filtered = applySearch(applyFilter(ledgerScoped));
   const tbody = document.getElementById('tableBody');
 
   if (!filtered.length) {
-    tbody.innerHTML = '<div class="empty">No entries yet — tap ＋ to add one.</div>';
+    tbody.innerHTML = '<div class="empty">No entries match current filters — tap ＋ to add or adjust filters.</div>';
   } else {
     tbody.innerHTML = filtered.map(e => `
       <div class="entry ${e.type}">
@@ -651,6 +867,7 @@ function render() {
           <div class="row1">
             <span class="source">${escapeHtml(e.source || e.category || '—')}</span>
             ${e.category ? `<span class="cat-tag">${escapeHtml(e.category)}</span>` : ''}
+            ${e.recurring ? `<span class="cat-tag recurring">🔁 recurring</span>` : ''}
           </div>
           <div class="meta">
             ${e.payment ? `<span>${escapeHtml(e.payment)}</span>` : ''}
@@ -669,8 +886,9 @@ function render() {
 
   document.getElementById('entryCount').textContent = filtered.length + (filtered.length === entries.length ? '' : ' / ' + entries.length);
 
-  const totalIncome = entries.filter(e => e.type === 'income').reduce((s, e) => s + Number(e.amount || 0), 0);
-  const totalExpenses = entries.filter(e => e.type === 'expense').reduce((s, e) => s + Number(e.amount || 0), 0);
+  // Sprint 23.D REMAINDER — summary stats scope to current ledger
+  const totalIncome = ledgerScoped.filter(e => e.type === 'income').reduce((s, e) => s + Number(e.amount || 0), 0);
+  const totalExpenses = ledgerScoped.filter(e => e.type === 'expense').reduce((s, e) => s + Number(e.amount || 0), 0);
   document.getElementById('totalIncome').textContent = fmt(totalIncome);
   document.getElementById('totalExpenses').textContent = fmt(totalExpenses);
   const net = totalIncome - totalExpenses;
@@ -678,6 +896,157 @@ function render() {
   balEl.textContent = (net >= 0 ? '' : '−') + fmt(Math.abs(net));
   balEl.style.color = net >= 0 ? 'var(--teal)' : 'var(--red)';
 }
+
+// Sprint 23.D REMAINDER — render reactive category dropdown from
+// /expense_types Firebase collection, fallback to hardcoded enum when
+// collection empty (backward-compat).
+function renderCategoryDropdown() {
+  const sel = document.getElementById('category');
+  if (!sel) return;
+  // Preserve currently-selected value across re-renders
+  const prev = sel.value;
+  if (!expenseTypes || expenseTypes.length === 0) {
+    // Hardcoded fallback already in HTML; nothing to do
+    return;
+  }
+  // Scope-filter to currently active ledger (or 'all')
+  const scoped = expenseTypes.filter(t => {
+    const tls = t.ledger_scope || 'all';
+    return tls === 'all' || (currentLedger !== 'all' && tls === currentLedger);
+  });
+  if (scoped.length === 0) return;
+  // Build optgroup-style HTML: keep "Income" + "Expenses" separation
+  // when V3 baseline categories are first 14. Brain-side seeds these
+  // as ledger_scope='all'. Custom additions appear under "Custom".
+  const v3Baseline = new Set([
+    'Food','Transport','Shopping','Bills','Health','Entertainment',
+    'Utilities','Education','Household','Personal','Family','Kids',
+    'Travel','Subscriptions','Other',
+    'Consulting','Salary','Business','Transfer Received','Other Income',
+  ]);
+  const baseline = scoped.filter(t => v3Baseline.has(t.name));
+  const custom = scoped.filter(t => !v3Baseline.has(t.name));
+  let html = '<option value="">— select —</option>';
+  if (baseline.length) {
+    html += '<optgroup label="Standard">';
+    baseline.forEach(t => {
+      html += `<option>${escapeHtml(t.name)}</option>`;
+    });
+    html += '</optgroup>';
+  }
+  if (custom.length) {
+    html += '<optgroup label="Custom">';
+    custom.forEach(t => {
+      html += `<option>${escapeHtml(t.name)}</option>`;
+    });
+    html += '</optgroup>';
+  }
+  sel.innerHTML = html;
+  // Restore prior selection if still valid
+  if (prev) sel.value = prev;
+}
+
+// Sprint 23.D REMAINDER — render custom_fields_schema form fields
+function renderCustomFields() {
+  const grid = document.getElementById('customFieldsGrid');
+  if (!grid) return;
+  if (!customFields || customFields.length === 0) {
+    grid.innerHTML = '';
+    return;
+  }
+  const currentType = document.getElementById('type')?.value || 'expense';
+  const scoped = customFields.filter(f => {
+    const at = f.applies_to || 'all';
+    if (at !== 'all' && at !== currentType) return false;
+    const ls = f.ledger_scope || 'all';
+    if (currentLedger !== 'all' && ls !== 'all' && ls !== currentLedger) return false;
+    return true;
+  });
+  if (!scoped.length) { grid.innerHTML = ''; return; }
+  grid.innerHTML = scoped.map(f => {
+    const id = `cf_${f._key}`;
+    if (f.field_type === 'enum' && Array.isArray(f.enum_values)) {
+      const opts = ['<option value="">— select —</option>']
+        .concat(f.enum_values.map(v => `<option>${escapeHtml(v)}</option>`))
+        .join('');
+      return `<div class="field"><label>${escapeHtml(f.name)} <span style="opacity:0.5">·custom</span></label><select id="${id}" data-cf="${escapeHtml(f._key)}" data-cf-name="${escapeHtml(f.name)}">${opts}</select></div>`;
+    }
+    const inputType = f.field_type === 'number' ? 'number'
+      : f.field_type === 'date' ? 'date'
+      : 'text';
+    return `<div class="field"><label>${escapeHtml(f.name)} <span style="opacity:0.5">·custom</span></label><input type="${inputType}" id="${id}" data-cf="${escapeHtml(f._key)}" data-cf-name="${escapeHtml(f.name)}" placeholder="${escapeHtml(f.name)}"></div>`;
+  }).join('');
+}
+
+// Sprint 23.D REMAINDER — render budget warn-mode summary (Q4 inform-only)
+function renderBudgets() {
+  const section = document.getElementById('budgetSummary');
+  const grid = document.getElementById('budgetGrid');
+  const countEl = document.getElementById('budgetCount');
+  if (!section || !grid) return;
+  // Scope budgets to active ledger
+  let scoped = budgets;
+  if (currentLedger !== 'all') {
+    scoped = budgets.filter(b => b.ledger === currentLedger);
+  }
+  if (!scoped.length) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  countEl.textContent = scoped.length;
+  // Compute spent per budget within its period window
+  const now = new Date();
+  const computePeriodStart = (period) => {
+    const d = new Date(now);
+    if (period === 'month') {
+      d.setDate(1); d.setHours(0,0,0,0);
+    } else if (period === 'week') {
+      const dow = d.getDay() === 0 ? 6 : d.getDay() - 1; // Monday-start
+      d.setDate(d.getDate() - dow); d.setHours(0,0,0,0);
+    } else if (period === 'day') {
+      d.setHours(0,0,0,0);
+    }
+    return d.getTime();
+  };
+  grid.innerHTML = scoped.map(b => {
+    const startMs = computePeriodStart(b.period);
+    const allowedForwhom = LEDGER_TO_FORWHOM[b.ledger] || [];
+    const spent = entries.filter(e =>
+      e.type === 'expense'
+      && e.category === b.category
+      && allowedForwhom.includes(e.forWhom)
+      && (e.ts || 0) >= startMs
+    ).reduce((s, e) => s + Number(e.amount || 0), 0);
+    const limit = Number(b.limit_amount || 0);
+    const pct = limit > 0 ? Math.min(999, (spent / limit) * 100) : 0;
+    let band = 'green';
+    if (pct >= 100) band = 'red';
+    else if (pct >= 80) band = 'amber';
+    const remaining = limit - spent;
+    const pctTxt = limit > 0 ? pct.toFixed(0) + '%' : '—';
+    const remainingTxt = remaining >= 0
+      ? `${fmt(remaining)} left`
+      : `${fmt(Math.abs(remaining))} over`;
+    return `
+      <div class="budget-row ${band}">
+        <div class="bm-label">
+          <div class="bm-cat">${escapeHtml(b.category)} · ${escapeHtml(b.ledger)} <span style="opacity:0.55;font-size:11px">${escapeHtml(b.period)}</span></div>
+          <div class="bm-meta">${fmt(spent)} of ${fmt(limit)} · ${remainingTxt}</div>
+        </div>
+        <div class="bm-value">
+          <div class="bm-pct">${pctTxt}</div>
+        </div>
+        <div class="bm-bar">
+          <div class="bm-fill" style="width:${Math.min(100, pct)}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Sprint 23.D REMAINDER — re-render custom fields when type toggles
+document.getElementById('type')?.addEventListener('change', renderCustomFields);
 
 function renderLog() {
   const logBody = document.getElementById('logBody');
@@ -709,12 +1078,28 @@ function escapeHtml(s) {
 }
 
 function exportCSV() {
-  const headers = ['Date','Type','Category','Source/Payee','Description','Payment','For','Amount','Added By','Device'];
-  const rows = entries.map(e => [e.date, e.type, e.category, e.source, e.description, e.payment, e.forWhom, e.amount, e.addedBy, e.device]);
+  // Sprint 23.D REMAINDER — export respects current ledger scope +
+  // includes recurring flag + flattens custom_fields columns
+  const scoped = applyLedger(entries);
+  const customFieldNames = Array.from(new Set(
+    scoped.flatMap(e => Object.keys(e.custom_fields || {}))
+  )).sort();
+  const headers = [
+    'Date','Type','Category','Source/Payee','Description','Payment',
+    'For','Amount','Added By','Device','Recurring',
+    ...customFieldNames.map(n => `cf_${n}`),
+  ];
+  const rows = scoped.map(e => [
+    e.date, e.type, e.category, e.source, e.description, e.payment,
+    e.forWhom, e.amount, e.addedBy, e.device,
+    e.recurring ? 'yes' : '',
+    ...customFieldNames.map(n => (e.custom_fields || {})[n] ?? ''),
+  ]);
   const csv = [headers, ...rows].map(r => r.map(v => `"${(v ?? '').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = `gella-finances-${new Date().toISOString().slice(0,10)}.csv`;
+  const ledgerTag = currentLedger === 'all' ? 'all-ledgers' : currentLedger;
+  a.download = `gella-finances-${ledgerTag}-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
 </script>
