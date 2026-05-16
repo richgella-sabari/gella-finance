@@ -12,6 +12,7 @@
 <!-- Sprint 23.D REMAINDER — Sabari V4 brain integration + 3-ledger + extensible types + budget warn-mode + custom fields -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <style>
   :root {
     --bg: #050a14;
@@ -411,6 +412,65 @@
   }
   .name-prompt input { max-width: 200px; min-height: 36px; padding: 6px 10px; }
 
+  /* ── Sprint 24.JJ Lane A — Auth gate (login overlay) ─────────── */
+  .auth-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background:
+      radial-gradient(ellipse at top, #0a1830 0%, #050a14 60%),
+      var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .auth-card {
+    width: 100%; max-width: 380px;
+    background: var(--panel); backdrop-filter: blur(14px);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    box-shadow: var(--shadow);
+  }
+  .auth-card h2 {
+    color: var(--teal); font-size: 16px; font-weight: 600;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .auth-card h2 .accent { color: #fff; }
+  .auth-card .auth-sub {
+    color: var(--text-mute); font-size: 12px; margin-bottom: 20px;
+  }
+  .auth-card label {
+    display: block; font-size: 11px;
+    color: var(--text-mute); text-transform: uppercase;
+    letter-spacing: 0.8px; margin: 12px 0 6px;
+  }
+  .auth-card input {
+    width: 100%; min-height: 40px;
+    background: rgba(5, 10, 20, 0.6); color: var(--text);
+    border: 1px solid var(--panel-border); border-radius: 8px;
+    padding: 8px 12px; font: 14px/1.4 inherit;
+  }
+  .auth-card input:focus {
+    outline: none; border-color: var(--teal);
+    box-shadow: 0 0 0 2px var(--teal-soft);
+  }
+  .auth-card .btn-primary {
+    width: 100%; margin-top: 18px; min-height: 42px;
+    justify-content: center;
+  }
+  .auth-error {
+    margin-top: 12px; padding: 8px 12px;
+    background: var(--red-soft); color: var(--red);
+    border: 1px solid rgba(255, 68, 68, 0.3); border-radius: 8px;
+    font-size: 12px; display: none;
+  }
+  .auth-error.show { display: block; }
+  .auth-footer {
+    margin-top: 16px; font-size: 11px; color: var(--text-mute);
+    text-align: center; line-height: 1.6;
+  }
+  /* Hidden until auth resolves to avoid flash-of-content */
+  .app-hidden { display: none !important; }
+
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
@@ -420,21 +480,60 @@
 </head>
 <body>
 
-<div class="name-prompt" id="namePrompt">
+<!-- ── Sprint 24.JJ Lane A — Auth-gate login overlay ──
+     Shown when logged-out; hides financial data + dashboard.
+     Operator-test sequence (Sub-sprint 3 test plan):
+       1. Logged-out → financial-data hidden + login form visible
+       2. Invalid credentials → error message + still gated
+       3. Valid credentials → financial-data renders
+       4. Refresh page while logged-in → session-persistence policy (SESSION =
+          stays logged-in for tab lifetime; logs out on tab close)
+       5. Logout button → returns to login form
+       6. Idle 15 min → auto-logout (Lane C IDLE_TIMEOUT_MS)
+       7. Audit-log records all login/logout/idle events (Lane C)
+     OPERATOR-ACTION-CHECKLIST dependency: Firebase Console must have
+     Email/Password sign-in enabled + accounts created for Rich + Nina
+     (CC cannot create accounts — prohibited per user-privacy).
+-->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-card">
+    <h2>▲ GELLA · <span class="accent">FINANCE</span></h2>
+    <div class="auth-sub">Sign in to view ledgers.</div>
+    <form id="loginForm" onsubmit="return doLogin(event)">
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" autocomplete="username" required
+             placeholder="you@example.com">
+      <label for="loginPassword">Password</label>
+      <input type="password" id="loginPassword" autocomplete="current-password" required
+             placeholder="••••••••">
+      <button type="submit" class="btn btn-primary" id="loginBtn">Sign in</button>
+      <div class="auth-error" id="loginError"></div>
+    </form>
+    <div class="auth-footer">
+      Accounts are operator-managed.<br>
+      Idle sessions auto-expire after 15 minutes.
+    </div>
+  </div>
+</div>
+
+<div class="name-prompt app-hidden" id="namePrompt">
   <span>👤 Who's adding entries?</span>
   <input type="text" id="nameInput" placeholder="Rich or Nina" maxlength="30">
   <button class="btn btn-primary" onclick="setUser()">Continue</button>
 </div>
 
-<header>
+<header class="app-hidden" id="appHeader">
   <h1>▲ GELLA · <span class="accent">FINANCE</span></h1>
   <div class="meta">
     <span class="pill" id="userBadge">👤 —</span>
     <span class="pill warn" id="syncStatus"><span class="dot"></span>connecting</span>
+    <span class="pill" id="authBadge" title="Signed-in account">🔐 —</span>
+    <button class="btn btn-danger" id="logoutBtn" onclick="doLogout()"
+            style="padding:4px 10px;font-size:11px;">Logout</button>
   </div>
 </header>
 
-<main>
+<main class="app-hidden" id="appMain">
 
   <!-- Summary -->
   <section class="summary">
@@ -596,18 +695,25 @@
 
 </main>
 
-<button class="fab" onclick="toggleAddPanel()" aria-label="Add entry">＋</button>
+<button class="fab app-hidden" id="appFab" onclick="toggleAddPanel()" aria-label="Add entry">＋</button>
 
 <script>
 const firebaseConfig = { databaseURL: "https://finance-tracker-gella-default-rtdb.firebaseio.com/" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+// Sprint 24.JJ Lane A — Firebase Auth handle (account-creation is operator-only
+// via Firebase Console → Authentication → Email/Password).
+const auth = firebase.auth();
 const entriesRef = db.ref('entries');
 const logRef = db.ref('auditTrail');
 // Sprint 23.D REMAINDER — Sabari V4 brain-side collections
 const expenseTypesRef = db.ref('expense_types');
 const customFieldsRef = db.ref('custom_fields_schema');
 const budgetsRef = db.ref('budgets');
+// Sprint 24.JJ Lane C — webapp-access audit-log ref (per-uid timestamped events).
+// Lane B per-ledger-ACL rules MUST allow self-uid write to /webappAccessLog/<uid>/
+// and deny ledger-user reads (operator-applies VERBATIM per OPERATOR-ACTION-CHECKLIST).
+const webappAccessLogRef = db.ref('webappAccessLog');
 
 let entries = [];
 let auditLog = [];
@@ -658,50 +764,72 @@ document.getElementById('date').value = new Date().toISOString().split('T')[0];
 
 db.ref('.info/connected').on('value', snap => {
   const el = document.getElementById('syncStatus');
+  if (!el) return;
   if (snap.val()) { el.innerHTML = '<span class="dot"></span>synced'; el.className = 'pill ok'; }
   else { el.innerHTML = '<span class="dot"></span>offline'; el.className = 'pill bad'; }
 });
 
-entriesRef.on('value', snap => {
+// Sprint 24.JJ Lane A — data subscriptions are gated by auth.
+// We attach only after onAuthStateChanged confirms a non-null user,
+// and detach on logout so Firebase rule denials never fire client-side.
+let dataSubscribed = false;
+const _entriesCb = snap => {
   const data = snap.val();
   if (!data) { entries = []; render(); return; }
   entries = Object.entries(data).map(([key, val]) => ({ ...val, _key: key }));
   entries.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   render();
-});
-
-logRef.on('value', snap => {
+};
+const _logCb = snap => {
   const data = snap.val();
   if (!data) { auditLog = []; renderLog(); return; }
   auditLog = Object.entries(data).map(([key, val]) => ({ ...val, _key: key }));
   auditLog.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   renderLog();
-});
-
-// Sprint 23.D REMAINDER — reactive load of Sabari brain-side schemas
-expenseTypesRef.on('value', snap => {
+};
+const _expenseTypesCb = snap => {
   const data = snap.val() || {};
   expenseTypes = Object.entries(data)
     .map(([key, val]) => ({ ...val, _key: key }))
     .filter(t => t.active !== false);
   renderCategoryDropdown();
-});
-
-customFieldsRef.on('value', snap => {
+};
+const _customFieldsCb = snap => {
   const data = snap.val() || {};
   customFields = Object.entries(data)
     .map(([key, val]) => ({ ...val, _key: key }))
     .filter(f => f.active !== false);
   renderCustomFields();
-});
-
-budgetsRef.on('value', snap => {
+};
+const _budgetsCb = snap => {
   const data = snap.val() || {};
   budgets = Object.entries(data)
     .map(([key, val]) => ({ ...val, _key: key }))
     .filter(b => b.active !== false);
   renderBudgets();
-});
+};
+
+function subscribeData() {
+  if (dataSubscribed) return;
+  entriesRef.on('value', _entriesCb);
+  logRef.on('value', _logCb);
+  // Sprint 23.D REMAINDER — reactive load of Sabari brain-side schemas
+  expenseTypesRef.on('value', _expenseTypesCb);
+  customFieldsRef.on('value', _customFieldsCb);
+  budgetsRef.on('value', _budgetsCb);
+  dataSubscribed = true;
+}
+
+function unsubscribeData() {
+  if (!dataSubscribed) return;
+  entriesRef.off('value', _entriesCb);
+  logRef.off('value', _logCb);
+  expenseTypesRef.off('value', _expenseTypesCb);
+  customFieldsRef.off('value', _customFieldsCb);
+  budgetsRef.off('value', _budgetsCb);
+  entries = []; auditLog = []; expenseTypes = []; customFields = []; budgets = [];
+  dataSubscribed = false;
+}
 
 function writeAudit(action, entryId, entry, user, device) {
   logRef.push({
@@ -1102,6 +1230,109 @@ function exportCSV() {
   a.download = `gella-finances-${ledgerTag}-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Sprint 24.JJ Lane A — Firebase Auth gate (login / logout / state)
+// ────────────────────────────────────────────────────────────────────
+// Operator-test sequence (Sub-sprint 3 test plan):
+//   1. Logged-out → financial-data hidden + login form visible
+//   2. Invalid credentials → error message + still gated
+//   3. Valid credentials → financial-data renders
+//   4. Refresh page while logged-in → session-persistence policy (Lane C)
+//   5. Logout button → returns to login form
+//   6. Idle 15 min → auto-logout (Lane C)
+//   7. Audit-log records all login/logout/idle events (Lane C)
+// Account-creation is OPERATOR-ONLY (PROHIBITED user-privacy):
+//   Firebase Console → Authentication → Sign-in method →
+//   Email/Password (enable) → Users tab → Add user (Rich, Nina).
+// ════════════════════════════════════════════════════════════════════
+
+function showAuthError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function clearAuthError() {
+  const el = document.getElementById('loginError');
+  el.textContent = '';
+  el.classList.remove('show');
+}
+
+function doLogin(ev) {
+  ev.preventDefault();
+  clearAuthError();
+  const email = document.getElementById('loginEmail').value.trim();
+  const pw = document.getElementById('loginPassword').value;
+  if (!email || !pw) {
+    showAuthError('Email and password required.');
+    return false;
+  }
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  auth.signInWithEmailAndPassword(email, pw)
+    .then(() => {
+      // onAuthStateChanged will handle UI swap + audit-log
+      document.getElementById('loginPassword').value = '';
+    })
+    .catch(err => {
+      // Common codes: auth/wrong-password, auth/user-not-found, auth/invalid-email,
+      // auth/too-many-requests, auth/network-request-failed
+      let msg = 'Sign-in failed.';
+      if (err && err.code === 'auth/wrong-password') msg = 'Incorrect password.';
+      else if (err && err.code === 'auth/user-not-found') msg = 'No account for that email.';
+      else if (err && err.code === 'auth/invalid-email') msg = 'Invalid email address.';
+      else if (err && err.code === 'auth/too-many-requests') msg = 'Too many attempts — try again later.';
+      else if (err && err.code === 'auth/network-request-failed') msg = 'Network error — check connection.';
+      else if (err && err.message) msg = 'Sign-in failed: ' + err.message;
+      showAuthError(msg);
+    })
+    .finally(() => {
+      btn.disabled = false; btn.textContent = 'Sign in';
+    });
+  return false;
+}
+
+function doLogout() {
+  auth.signOut().catch(err => console.error('signOut failed', err));
+}
+
+// Show/hide app surfaces based on auth state.
+function setAppVisible(visible) {
+  const overlay = document.getElementById('authOverlay');
+  const header = document.getElementById('appHeader');
+  const main = document.getElementById('appMain');
+  const fab = document.getElementById('appFab');
+  const namePrompt = document.getElementById('namePrompt');
+  if (visible) {
+    overlay.classList.add('app-hidden');
+    header.classList.remove('app-hidden');
+    main.classList.remove('app-hidden');
+    fab.classList.remove('app-hidden');
+    // namePrompt visibility is governed by existing currentUser logic
+    if (!currentUser) namePrompt.classList.remove('app-hidden');
+  } else {
+    overlay.classList.remove('app-hidden');
+    header.classList.add('app-hidden');
+    main.classList.add('app-hidden');
+    fab.classList.add('app-hidden');
+    namePrompt.classList.add('app-hidden');
+  }
+}
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    // Logged-in — render app surfaces + attach data subscriptions.
+    const badge = document.getElementById('authBadge');
+    if (badge) badge.textContent = '🔐 ' + (user.email || user.uid);
+    setAppVisible(true);
+    subscribeData();
+    clearAuthError();
+  } else {
+    // Logged-out — hide app surfaces + detach data subscriptions.
+    unsubscribeData();
+    setAppVisible(false);
+  }
+});
 </script>
 </body>
 </html>
