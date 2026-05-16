@@ -1293,6 +1293,11 @@ function doLogin(ev) {
 }
 
 function doLogout() {
+  // Sprint 24.JJ Lane C — emit 'logout' audit BEFORE signOut clears
+  // auth.currentUser, then signOut. writeAccessAudit is defined in
+  // Lane C section below (function-hoisted; safe to call here).
+  const u = auth.currentUser;
+  if (u && typeof writeAccessAudit === 'function') writeAccessAudit('logout', u);
   auth.signOut().catch(err => console.error('signOut failed', err));
 }
 
@@ -1319,20 +1324,124 @@ function setAppVisible(visible) {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════
+// Sprint 24.JJ Lane C — Session persistence + idle-expiry + audit-log
+// ────────────────────────────────────────────────────────────────────
+// Financial-data-appropriate session policy:
+//   SESSION = persists for tab lifetime, dropped on tab close.
+//   (LOCAL persists across browser restarts — too long for finance.
+//    NONE drops on page refresh — too short for usability.)
+// Idle-timeout: 15 minutes (industry-standard for financial-data;
+//   operator-tunable below). Activity = mousemove + keydown +
+//   touchstart + click. On timeout: auth.signOut() + audit-log.
+// Audit-log destination: Firebase RTDB /webappAccessLog/<uid>/<timestamp>.
+//   Schema: { uid, email, ts, event, userAgent }
+//   event ∈ { 'login', 'logout', 'idle_timeout' }
+//   Lane B per-ledger-ACL rules MUST permit self-uid write here and deny
+//   ledger-user read (audit ledger must not be readable by ledger-users).
+//   If operator de-scopes Lane B audit-rules → CC falls back to
+//   console.log only (writeAccessAudit() catches denial silently).
+// ════════════════════════════════════════════════════════════════════
+
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 min; operator-tunable
+
+// Session persistence — set BEFORE first onAuthStateChanged fires.
+auth.setPersistence(firebase.auth.Auth.Persistence.SESSION)
+  .catch(err => console.warn('auth.setPersistence(SESSION) failed; falling back to default', err));
+
+// ── Webapp-access audit-log ─────────────────────────────────────────
+function writeAccessAudit(event, user) {
+  if (!user) return;
+  const entry = {
+    uid: user.uid,
+    email: user.email || null,
+    ts: firebase.database.ServerValue.TIMESTAMP,
+    event: event, // 'login' | 'logout' | 'idle_timeout'
+    userAgent: (navigator.userAgent || '').slice(0, 256),
+  };
+  try {
+    webappAccessLogRef.child(user.uid).push(entry)
+      .catch(err => {
+        // Per chain prompt: if Firebase rejects (e.g., rules deny audit
+        // write or operator de-scoped audit-storage), fall back silently
+        // to console-log so login flow is never blocked by audit failure.
+        console.warn('webapp-access audit-log write rejected; falling back to console', err);
+        console.info('[webapp-access-audit]', { ...entry, ts: Date.now() });
+      });
+  } catch (err) {
+    console.warn('webapp-access audit-log threw; console fallback', err);
+    console.info('[webapp-access-audit]', { ...entry, ts: Date.now() });
+  }
+}
+
+// ── Idle watcher ────────────────────────────────────────────────────
+let idleTimerId = null;
+let idleListenersAttached = false;
+function resetIdleTimer() {
+  if (idleTimerId) clearTimeout(idleTimerId);
+  idleTimerId = setTimeout(() => {
+    const u = auth.currentUser;
+    if (u) {
+      writeAccessAudit('idle_timeout', u);
+      // Surface a brief reason on the login screen post-signout.
+      auth.signOut().then(() => {
+        showAuthError('Signed out after ' + (IDLE_TIMEOUT_MS / 60000) + ' min of inactivity.');
+      });
+    }
+  }, IDLE_TIMEOUT_MS);
+}
+function _idleActivityHandler() { resetIdleTimer(); }
+function attachIdleWatcher() {
+  if (idleListenersAttached) return;
+  ['mousemove', 'keydown', 'touchstart', 'click'].forEach(ev =>
+    window.addEventListener(ev, _idleActivityHandler, { passive: true })
+  );
+  idleListenersAttached = true;
+  resetIdleTimer();
+}
+function detachIdleWatcher() {
+  if (!idleListenersAttached) return;
+  ['mousemove', 'keydown', 'touchstart', 'click'].forEach(ev =>
+    window.removeEventListener(ev, _idleActivityHandler)
+  );
+  if (idleTimerId) { clearTimeout(idleTimerId); idleTimerId = null; }
+  idleListenersAttached = false;
+}
+
+// Browser-close hook: best-effort logout audit (synchronous-ish).
+window.addEventListener('beforeunload', () => {
+  const u = auth.currentUser;
+  if (u) writeAccessAudit('logout', u);
+});
+
+// ── Auth-state hook (combines Lane A UI gating + Lane C session/audit) ──
+// Single onAuthStateChanged handler:
+//   Lane A: UI surfaces (overlay / header / main / FAB / namePrompt) +
+//           data subscription attach/detach.
+//   Lane C: audit-log 'login' write + idle-watcher attach/detach +
+//           session-persistence already set above.
+// 'logout' audit is emitted by doLogout() BEFORE signOut() resolves
+// (so auth.currentUser is still defined for the audit write).
 auth.onAuthStateChanged(user => {
   if (user) {
-    // Logged-in — render app surfaces + attach data subscriptions.
+    // Lane A — UI gate + data subscriptions
     const badge = document.getElementById('authBadge');
     if (badge) badge.textContent = '🔐 ' + (user.email || user.uid);
     setAppVisible(true);
     subscribeData();
     clearAuthError();
+    // Lane C — audit + idle watcher
+    writeAccessAudit('login', user);
+    attachIdleWatcher();
   } else {
-    // Logged-out — hide app surfaces + detach data subscriptions.
+    // Lane A — UI ungate + data unsubscribe
     unsubscribeData();
     setAppVisible(false);
+    // Lane C — stop idle timer
+    detachIdleWatcher();
   }
 });
+
 </script>
 </body>
 </html>
