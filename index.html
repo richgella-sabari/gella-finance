@@ -698,7 +698,16 @@
 <button class="fab app-hidden" id="appFab" onclick="toggleAddPanel()" aria-label="Add entry">＋</button>
 
 <script>
-const firebaseConfig = { databaseURL: "https://finance-tracker-gella-default-rtdb.firebaseio.com/" };
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCwNIuAMH6F0R9fy2LlBsmkr3xrIIsRr30",
+  authDomain: "finance-tracker-gella.firebaseapp.com",
+  databaseURL: "https://finance-tracker-gella-default-rtdb.firebaseio.com",
+  projectId: "finance-tracker-gella",
+  storageBucket: "finance-tracker-gella.firebasestorage.app",
+  messagingSenderId: "540564123222",
+  appId: "1:540564123222:web:e313a69bf32fe4d29995f7"
+};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 // Sprint 24.JJ Lane A — Firebase Auth handle (account-creation is operator-only
